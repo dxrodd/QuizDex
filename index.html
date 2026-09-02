@@ -481,6 +481,14 @@ button.answer.wrong:hover{
 .versus-tabs{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}.versus-role-grid{display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:12px;margin:14px 0}.mini-mode{min-height:100px;text-align:left}.versus-panel{padding:16px 0}.versus-form{margin-top:14px;padding:16px;background:#f5f7fa;border:1px solid #c5ced8;border-radius:12px}.lobby-info{margin-top:12px;padding:12px;border:1px solid #9da9b5;border-radius:10px;background:#eef2f6;font-weight:800}.online-vs-board{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}.online-player{padding:10px;border:1px solid #c5ced8;border-radius:10px;background:#f7f9fb}.online-player .big{font-size:24px}.online-result{margin-top:15px;padding:15px;border-radius:12px;background:#eef2f6;border:1px solid #c5ced8}.online-swatch{width:min(260px,70vw);height:min(260px,70vw);border-radius:20px;border:3px solid #b5c0cb;box-shadow:0 8px 20px rgba(20,32,45,.14);margin:18px auto}.online-sprite{width:220px;height:220px;object-fit:contain}.online-sil{filter:brightness(0) saturate(0) contrast(1.35) drop-shadow(0 18px 20px rgba(0,0,0,.35))}.online-hints{width:min(720px,100%);display:grid;gap:8px;margin-top:14px}.online-hint{padding:9px 12px;border-radius:8px;background:#eef2f6;border:1px solid #c5ced8;text-align:left}.online-hint strong{display:block}.online-hint.locked{opacity:.55}.online-wait{padding:20px;text-align:center;font-weight:900}@media(max-width:700px){.versus-role-grid,.online-vs-board{grid-template-columns:1fr}.versus-form .row{flex-direction:column;align-items:stretch}.online-sprite{width:180px;height:180px}}
 #answers .answer{background:#eef2f6!important;color:#18212b!important;border:2px solid #aeb8c3!important;box-shadow:0 3px 0 #c2cbd4!important;border-radius:9px!important}#answers .answer:hover{background:#e2e8ee!important}#answers .answer.correct{background:#b7e8c0!important;border-color:#55a96a!important;color:#15351e!important}#answers .answer.wrong{background:#f2b8bd!important;border-color:#c85b64!important;color:#4b171d!important}
 </style>
+
+<style id="color-reveal-sprite">
+.color-reveal{display:flex;flex-direction:column;align-items:center;justify-content:center;margin:8px 0 14px;animation:colorRevealIn .25s ease-out;}
+.color-reveal-label{font-weight:900;font-size:16px;margin-bottom:4px;color:#fff;}
+.color-reveal-sprite{width:180px;height:180px;object-fit:contain;image-rendering:pixelated;filter:drop-shadow(0 12px 14px #0007);}
+@keyframes colorRevealIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
+@media(max-width:650px){.color-reveal-sprite{width:150px;height:150px;}}
+</style>
 </head>
 <body>
 <div class="app">
@@ -494,7 +502,7 @@ button.answer.wrong:hover{
     <button class="mode" onclick="start('silhouette_retro')"><b>🕹️ SILUETA RETRO</b><small>Los 1025 Pokémon usando sprites de Pokémon Black/White (5ª generación), convertidos en siluetas.</small></button>
     <button class="mode" onclick="start('stats')"><b>📊 ESTADÍSTICAS</b><small>Adivina usando PS, Ataque, Defensa, Velocidad y más.</small></button>
     <button class="mode mix-mode" onclick="start('mix')"><b>🎲 MIX · ∞ INFINITO</b><small>Mezcla aleatoriamente silueta, descripción y estadísticas. Este modo es siempre infinito.</small></button>
-    <button class="mode color-mode" onclick="start('color')"><b>🎨 COLOR</b><small>Adivina el Pokémon por su color. Cada fallo desbloquea una pista, hasta 5.</small></button>
+    <button class="mode color-mode" onclick="start('color')"><b>🎨 COLOR</b><small>Adivina el Pokémon por su color. Tienes 6 intentos. Cada fallo desbloquea una pista.</small></button>
     <button class="mode" onclick="start('pokedex')"><b>📖 POKÉDEX</b><small>Identifícalo mediante una descripción de la Pokédex.</small></button>
     <button class="mode" onclick="start('versus')"><b>⚔️ VERSUS</b><small>Privado con código o PvP público. 10 rondas sincronizadas.</small></button>
   </div>
@@ -570,7 +578,9 @@ let usedIds=new Set();
 let dex=[], mode='', round=0, maxRounds=10, streak=0, score=0, current=null, answered=false;
 let versus=false, players=[], difficulty='normal', currentPlayer=0, infinite=false, singlePlayerName='Jugador', currentQuestionMode='silhouette', colorWrongCount=0, colorShiny=false;
 const $=id=>document.getElementById(id);
+const TYPE_NAMES={normal:'Normal',fire:'Fuego',water:'Agua',electric:'Eléctrico',grass:'Planta',ice:'Hielo',fighting:'Lucha',poison:'Veneno',ground:'Tierra',flying:'Volador',psychic:'Psíquico',bug:'Bicho',rock:'Roca',ghost:'Fantasma',dragon:'Dragón',dark:'Siniestro',steel:'Acero',fairy:'Hada'};
 const pretty=s=>s[0].toUpperCase()+s.slice(1).replaceAll('-',' ');
+const prettyType=s=>TYPE_NAMES[s]||pretty(s);
 const pokemonDetailCache=new Map();
 const pokemonDetailPromises=new Map();
 
@@ -687,6 +697,7 @@ async function colorInfo(p){
     height:`${(p.height/10).toFixed(1)} m`,
     weight:`${(p.weight/10).toFixed(1)} kg`,
     stats:selectedStats.join(' · '),
+    type:(p.types||[]).map(x=>prettyType(x.type?.name||'')).filter(Boolean).join(' / ')||'No disponible',
     locations,
     egg:(sp.egg_groups||[]).map(x=>pretty(x.name)).join(', ')||'No disponible',
     generation:pretty((sp.generation?.name||'').replace('generation-','Generación ')),
@@ -726,11 +737,11 @@ function summarizePokemonLocations(names){
 }
 function colorHintMarkup(info){
   const hints=[
-    ['Pista 1 · Generación',info.generation],
-    ['Pista 2 · Estadísticas',info.stats],
-    ['Pista 3 · Localización',info.locations],
-    ['Pista 4 · Grupo huevo',info.isShiny?'✨ Es un Pokémon shiny':info.egg],
-    ['Pista 5 · Tamaño',`${info.height} · ${info.weight}`]
+    ['Pista 1 · Tamaño',`${info.height} · ${info.weight}`],
+    ['Pista 2 · Localización',info.locations],
+    ['Pista 3 · Generación',info.generation],
+    ['Pista 4 · Tipo',info.type],
+    ['Pista 5 · Estadísticas',info.stats]
   ];
   return `<div class="color-hints">${hints.map((h,i)=>`<div class="color-hint ${i<colorWrongCount?'active':''}"><strong>${h[0]}</strong>${i<colorWrongCount?h[1]:'🔒 Pista bloqueada'}</div>`).join('')}</div>`;
 }
@@ -752,12 +763,22 @@ function colorGuessMatches(value,pokemon){
   }
   return candidates.some(name=>normalizePokemonName(name)===wanted);
 }
+function revealColorPokemon(){
+  const question=$('question');
+  if(!question || question.querySelector('.color-reveal-sprite')) return;
+  const swatch=question.querySelector('.color-swatch');
+  const imgSrc=normalSprite(current);
+  if(!imgSrc) return;
+  const wrap=document.createElement('div');
+  wrap.className='color-reveal';
+  wrap.innerHTML=`<div class="color-reveal-label">✨ Pokémon revelado</div><img class="sprite color-reveal-sprite" src="${imgSrc}" alt="${pretty(current.name)}">`;
+  if(swatch) swatch.parentNode.insertBefore(wrap,swatch); else question.prepend(wrap);
+}
 async function submitColorGuess(){
   if(answered)return;
   const input=$('colorGuess'), button=$('colorGuessBtn');
   const value=(input?.value||'').trim();
   if(!value){$('feedback').textContent='Escribe el nombre de un Pokémon.';input?.focus();return;}
-  // Aseguramos que tenemos el Pokémon completo antes de comprobarlo.
   if(current && !(current.name && current.id)) current=await fetchPokemonDetail(current);
   const correct=colorGuessMatches(value,current);
   if(correct){
@@ -769,23 +790,24 @@ async function submitColorGuess(){
     score+=pts;
     $('streakText').textContent=streak;
     $('feedback').textContent=`✓ ¡Correcto! +${pts} puntos`;
+    revealColorPokemon();
     $('next').classList.remove('hidden');
   }else{
-    colorWrongCount=Math.min(5,colorWrongCount+1);
+    colorWrongCount++;
     const info=colorCache.get(current.id);
     const hints=document.querySelector('.color-hints');
     if(hints&&info)hints.outerHTML=colorHintMarkup(info);
-    if(input)input.select();
-    if(colorWrongCount>=5){
+    if(colorWrongCount>=6){
       answered=true;
       if(input)input.disabled=true;
       if(button)button.disabled=true;
       streak=0;
       $('streakText').textContent=0;
-      $('feedback').textContent=`✗ Era ${pretty(current.name)} · Has usado las 5 pistas`;
+      $('feedback').textContent=`✗ Era ${pretty(current.name)} · Has agotado los 6 intentos`;
+      revealColorPokemon();
       $('next').classList.remove('hidden');
     }else{
-      $('feedback').textContent=`✗ No es ese. Pista ${colorWrongCount}/5 desbloqueada`;
+      $('feedback').textContent=`✗ No es ese. Intento ${colorWrongCount}/6 · Pista ${colorWrongCount} desbloqueada`;
       input?.focus();
     }
   }
@@ -823,7 +845,7 @@ async function nextRound(){
     colorShiny=Math.random()<0.15;
     const info=await colorInfo(current);
     const hex=colorMap[info.color]||'#b8bec6';
-    q=`<div class="prompt">🎨 COLOR · ¿Qué Pokémon tiene este color?</div><div class="color-swatch" style="background:${hex}" aria-label="Color Pokémon"></div><div class="hint">Cada fallo desbloquea una pista, hasta 5.</div>${colorHintMarkup(info)}`;
+    q=`<div class="prompt">🎨 COLOR · ¿Qué Pokémon tiene este color?</div><div class="color-swatch" style="background:${hex}" aria-label="Color Pokémon"></div><div class="hint">Tienes 6 intentos. Cada fallo desbloquea una pista.</div>${colorHintMarkup(info)}`;
   } else if(currentQuestionMode==='pokedex'){
     await ensureSpecies(current);
     q=`<div class="prompt">🎲 MIX · ¿Qué Pokémon es? · Descripción</div><div class="desc">${descFor(current)}</div>`;
@@ -1060,7 +1082,7 @@ if ('serviceWorker' in navigator) {
 const ONLINE_SERVER = window.VERSUS_SERVER_URL ||
   (window.POKEMON_QUIZ_CONFIG && window.POKEMON_QUIZ_CONFIG.versusServer) ||
   ((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
-let vsSocket=null,vsRoom='',vsOnline=false,vsScore=0,vsOppScore=0,vsOppName='Rival',vsQuestion=null,vsAnswered=false;
+let vsSocket=null,vsRoom='',vsOnline=false,vsScore=0,vsOppScore=0,vsOppName='Rival',vsQuestion=null,vsAnswered=false,vsColorWrongCount=0;
 window.showVersusPanel=function(w){$('versusPrivatePanel').classList.toggle('hidden',w!=='private');$('versusPublicPanel').classList.toggle('hidden',w!=='public');$('vtabPrivate').className=w==='private'?'primary':'secondary';$('vtabPublic').className=w==='public'?'primary':'secondary'};
 window.setVersusRole=function(r){$('versusHostForm').classList.toggle('hidden',r!=='host');$('versusGuestForm').classList.toggle('hidden',r!=='guest')};
 function connect(cb){if(vsSocket&&vsSocket.readyState===1)return cb();try{vsSocket=new WebSocket(ONLINE_SERVER)}catch(e){return alert('No se pudo abrir la conexión Versus. Configura VERSUS_SERVER_URL.')};vsSocket.onopen=cb;vsSocket.onmessage=e=>{try{handle(JSON.parse(e.data))}catch(x){console.error(x)}};vsSocket.onclose=()=>{if(vsOnline)$('feedback').textContent='Conexión cerrada.'};setInterval(()=>{if(vsSocket&&vsSocket.readyState===1)vsSocket.send(JSON.stringify({type:'ping'}))},20000)}
@@ -1071,8 +1093,8 @@ window.joinPublicMatch=function(){let mode=$('publicMode').value;connect(()=>sen
 window.leaveVersusOnline=function(){try{send({type:'leave'})}catch(e){}vsOnline=false;vsRoom='';vsQuestion=null;vsAnswered=false};
 function modeName(m){return {silhouette_normal:'Silueta Normal',silhouette_retro:'Silueta Retro',pokedex:'Descripción',stats:'Estadísticas',mix:'Mix',color:'Color'}[m]||m}
 function board(){let b=document.getElementById('onlineBoard');if(!b){b=document.createElement('div');b.id='onlineBoard';b.className='online-vs-board';$('question').before(b)}b.innerHTML=`<div class="online-player"><strong>${escapeHtml(singlePlayerName||'Jugador')}</strong><div class="big">${vsScore}</div><small>puntos</small></div><div class="online-player"><strong>${escapeHtml(vsOppName)}</strong><div class="big">${vsOppScore}</div><small>puntos</small></div>`}
-async function renderQ(q){vsQuestion=q;vsAnswered=false;current=dex.find(p=>p.id===q.pokemonId);if(!current)return;$('roundText').textContent=`${q.round}/10`;$('streakText').textContent=vsScore;$('turnPill').classList.remove('hidden');$('turnPill').textContent='⚔️ '+modeName(q.mode);$('feedback').textContent='';
-let opts=(q.options||[]).map(id=>dex.find(p=>p.id===id)).filter(Boolean),html='';if(q.mode==='color'){let info=await colorInfo(current),hex=colorMap[info.color]||'#b8bec6';html=`<div class="prompt">🎨 COLOR · ¿Qué Pokémon tiene este color?</div><div class="online-swatch" style="background:${hex}"></div><div class="hint">Cada fallo desbloquea una pista.</div><div id="onlineHints" class="online-hints"></div>`}else if(q.mode==='pokedex'){await ensureSpecies(current);html=`<div class="prompt">📖 ¿Qué Pokémon es?</div><div class="desc">${descFor(current)}</div>`}else if(q.mode==='stats'){html=`<div class="prompt">📊 ¿Qué Pokémon tiene estas estadísticas?</div><div class="statgrid">${current.stats.map(s=>`<div class="stat"><small>${pretty(s.stat.name)}</small><b>${s.base_stat}</b></div>`).join('')}</div>`}else{html=`<div class="prompt">🌑 ¿Qué Pokémon es?</div><img class="online-sprite online-sil" src="${q.mode==='silhouette_retro'?gen5Sprite(current):normalSprite(current)}" alt="Silueta">`}
+async function renderQ(q){vsQuestion=q;vsAnswered=false;vsColorWrongCount=0;current=dex.find(p=>p.id===q.pokemonId);if(!current)return;$('roundText').textContent=`${q.round}/10`;$('streakText').textContent=vsScore;$('turnPill').classList.remove('hidden');$('turnPill').textContent='⚔️ '+modeName(q.mode);$('feedback').textContent='';
+let opts=(q.options||[]).map(id=>dex.find(p=>p.id===id)).filter(Boolean),html='';if(q.mode==='color'){let info=await colorInfo(current),hex=colorMap[info.color]||'#b8bec6';html=`<div class="prompt">🎨 COLOR · ¿Qué Pokémon tiene este color?</div><div class="online-swatch" style="background:${hex}"></div><div class="hint">Tienes 6 intentos. Cada fallo desbloquea una pista.</div><div id="onlineHints" class="online-hints"></div>`}else if(q.mode==='pokedex'){await ensureSpecies(current);html=`<div class="prompt">📖 ¿Qué Pokémon es?</div><div class="desc">${descFor(current)}</div>`}else if(q.mode==='stats'){html=`<div class="prompt">📊 ¿Qué Pokémon tiene estas estadísticas?</div><div class="statgrid">${current.stats.map(s=>`<div class="stat"><small>${pretty(s.stat.name)}</small><b>${s.base_stat}</b></div>`).join('')}</div>`}else{html=`<div class="prompt">🌑 ¿Qué Pokémon es?</div><img class="online-sprite online-sil" src="${q.mode==='silhouette_retro'?gen5Sprite(current):normalSprite(current)}" alt="Silueta">`}
 $('question').innerHTML=html;
 if(q.mode==='color'){
   $('answers').innerHTML=`<div class="color-input-wrap"><input id="colorGuess" class="color-guess" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Escribe el nombre del Pokémon" aria-label="Nombre del Pokémon"><button id="colorGuessBtn" class="primary" type="button" onclick="submitOnlineColorGuess()">Comprobar</button></div>`;
@@ -1083,7 +1105,7 @@ if(q.mode==='color'){
   document.querySelectorAll('#answers .answer').forEach(b=>b.onclick=()=>answer(+b.dataset.id,b));
 }
 if(q.mode==='color')updateHints(q.hints||0,q.shiny||false,current);board()}
-async function updateHints(n,shiny,p){if(!$('onlineHints'))return;const info=await colorInfo(p);const h=[['Pista 1 · Generación',info.generation],['Pista 2 · Estadísticas',info.stats],['Pista 3 · Localización',info.locations],['Pista 4 · Grupo huevo',shiny?'✨ Es un Pokémon shiny':info.egg],['Pista 5 · Tamaño',`${info.height} · ${info.weight}`]];$('onlineHints').innerHTML=h.map((x,i)=>`<div class="online-hint ${i<n?'':'locked'}"><strong>${x[0]}</strong>${i<n?x[1]:'🔒 Pista bloqueada'}</div>`).join('')}
+async function updateHints(n,shiny,p){if(!$('onlineHints'))return;const info=await colorInfo(p);const h=[['Pista 1 · Tamaño',`${info.height} · ${info.weight}`],['Pista 2 · Localización',info.locations],['Pista 3 · Generación',info.generation],['Pista 4 · Tipo',info.type],['Pista 5 · Estadísticas',info.stats]];$('onlineHints').innerHTML=h.map((x,i)=>`<div class="online-hint ${i<n?'':'locked'}"><strong>${x[0]}</strong>${i<n?x[1]:'🔒 Pista bloqueada'}</div>`).join('')}
 window.submitOnlineColorGuess=async function(){
   if(vsAnswered)return;
   const input=$('colorGuess'),value=(input?.value||'').trim();
@@ -1091,8 +1113,17 @@ window.submitOnlineColorGuess=async function(){
   try{
     const correct=await fetchPokemonDetail({id:Number(vsQuestion?.correctId),url:`${API}/pokemon/${vsQuestion?.correctId}/`});
     if(normalizePokemonName(correct.name)!==normalizePokemonName(value)){
-      $('feedback').textContent='✗ No es ese. Pista desbloqueada.';
-      input?.select(); input?.focus();
+      vsColorWrongCount++;
+      send({type:'answer',answerId:0});
+      if(vsColorWrongCount>=6){
+        vsAnswered=true;
+        if(input)input.disabled=true;
+        if($('colorGuessBtn'))$('colorGuessBtn').disabled=true;
+        $('feedback').textContent=`✗ Has agotado los 6 intentos.`;
+      }else{
+        $('feedback').textContent=`✗ No es ese. Intento ${vsColorWrongCount}/6 · Pista ${vsColorWrongCount} desbloqueada.`;
+        input?.select(); input?.focus();
+      }
       return;
     }
     vsAnswered=true;
@@ -1114,7 +1145,7 @@ function handle(m){if(m.type==='private_created'){vsRoom=m.code;vsOnline=true;$(
       vsAnswered=false;
       if($('colorGuess')){$('colorGuess').select();$('colorGuess').focus()}
     }
-    $('feedback').textContent=vsQuestion?.mode==='color'?`✗ No es ese. Pista desbloqueada.`:`✗ No es ese`;
+    $('feedback').textContent=vsQuestion?.mode==='color'?(m.exhausted?`✗ Has agotado los 6 intentos.`:`✗ No es ese. Pista desbloqueada.`):`✗ No es ese`; if(vsQuestion?.mode==='color'&&m.exhausted){vsAnswered=true;if($('colorGuess'))$('colorGuess').disabled=true;if($('colorGuessBtn'))$('colorGuessBtn').disabled=true}
   }
   board()
 }else if(m.type==='game_over'){vsScore=m.score;vsOppScore=m.opponentScore;board();$('game').classList.add('hidden');$('results').classList.remove('hidden');$('resultList').innerHTML=`<div class="online-result"><h3>${m.winner==='you'?'🏆 ¡Has ganado!':m.winner==='draw'?'🤝 Empate':'💥 Has perdido'}</h3><p>${escapeHtml(m.reason||'')}</p><p><strong>Tú:</strong> ${m.score} · <strong>Rival:</strong> ${m.opponentScore}</p></div>`}else if(m.type==='error')alert(m.message||'Error en Versus online.')}
