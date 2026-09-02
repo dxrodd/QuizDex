@@ -564,12 +564,49 @@ let dex=[], mode='', round=0, maxRounds=10, streak=0, score=0, current=null, ans
 let versus=false, players=[], difficulty='normal', currentPlayer=0, infinite=false, singlePlayerName='Jugador', currentQuestionMode='silhouette', colorWrongCount=0, colorShiny=false;
 const $=id=>document.getElementById(id);
 const pretty=s=>s[0].toUpperCase()+s.slice(1).replaceAll('-',' ');
+const pokemonDetailCache=new Map();
+const pokemonDetailPromises=new Map();
+
+async function fetchPokemonDetail(p){
+  if(p && p.sprites && p.stats && p.height!=null) return p;
+  const id=p.id || Number(String(p.url||'').match(/\/(\d+)\/?$/)?.[1]);
+  if(!id) return p;
+  if(pokemonDetailCache.has(id)) return pokemonDetailCache.get(id);
+  if(pokemonDetailPromises.has(id)) return pokemonDetailPromises.get(id);
+  const promise=fetch(`${API}/pokemon/${id}`)
+    .then(r=>{if(!r.ok)throw new Error('PokéAPI '+r.status);return r.json()})
+    .then(full=>{
+      pokemonDetailCache.set(id,full);
+      const pos=dex.findIndex(x=>x.id===id);
+      if(pos>=0)dex[pos]=full;
+      return full;
+    })
+    .finally(()=>pokemonDetailPromises.delete(id));
+  pokemonDetailPromises.set(id,promise);
+  return promise;
+}
+
+function preloadPokemonDetails(list){
+  const unique=[...new Set(list.map(p=>p.id))].filter(id=>!pokemonDetailCache.has(id));
+  unique.slice(0,6).forEach(id=>{
+    const p=dex.find(x=>x.id===id);
+    if(p) fetchPokemonDetail(p).catch(()=>{});
+  });
+}
+
 async function loadDex(){
   try{
-    const r=await fetch(API+`/pokemon?limit=${MAX_POKEMON}`); const j=await r.json();
-    dex=await Promise.all(j.results.map(async x=>(await fetch(x.url)).json()));
+    // Solo descargamos el índice al abrir la web. Los detalles se cargan bajo demanda.
+    // El Service Worker los guarda en caché para que las siguientes partidas sean mucho más rápidas.
+    const r=await fetch(API+`/pokemon?limit=${MAX_POKEMON}`);
+    const j=await r.json();
+    dex=j.results.map((x,i)=>({
+      id:Number(String(x.url).match(/\/(\d+)\/?$/)?.[1])||i+1,
+      name:x.name,
+      url:x.url,
+      species:{url:`${API}/pokemon-species/${Number(String(x.url).match(/\/(\d+)\/?$/)?.[1])||i+1}/`}
+    }));
     $('status').textContent='Pokédex lista · '+dex.length+' Pokémon';
-    $('status').textContent='Pokédex lista · 1025';
   }catch(e){$('status').textContent='Error cargando PokéAPI'; alert('No se pudo cargar PokéAPI. Comprueba tu conexión y vuelve a abrir el juego.');}
 }
 function goHome(){
@@ -664,12 +701,24 @@ function colorHintMarkup(info){
 }
 async function normalizePokemonName(s){return String(s||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/♀/g,'f').replace(/♂/g,'m').replace(/[^a-z0-9]/g,'')} 
 function submitColorGuess(){if(answered)return;const input=$('colorGuess'),value=(input?.value||'').trim();if(!value){$('feedback').textContent='Escribe el nombre de un Pokémon.';input?.focus();return}const correct=normalizePokemonName(value)===normalizePokemonName(current.name);if(correct){answered=true;input.disabled=true;$('colorGuessBtn').disabled=true;streak++;const pts=100+(infinite?0:(maxRounds-round)*10);score+=pts;$('streakText').textContent=streak;$('feedback').textContent=`✓ ¡Correcto! +${pts} puntos`;$('next').classList.remove('hidden')}else{colorWrongCount=Math.min(5,colorWrongCount+1);const info=colorCache.get(current.id);const hints=document.querySelector('.color-hints');if(hints&&info)hints.outerHTML=colorHintMarkup(info);input.select();if(colorWrongCount>=5){answered=true;input.disabled=true;$('colorGuessBtn').disabled=true;streak=0;$('streakText').textContent=0;$('feedback').textContent=`✗ Era ${pretty(current.name)} · Has usado las 5 pistas`;$('next').classList.remove('hidden')}else{$('feedback').textContent=`✗ No es ese. Pista ${colorWrongCount}/5 desbloqueada`;input.focus()}}}
-function nextRound(){
+async function nextRound(){
   if(!infinite && round>=maxRounds){finish();return}
   answered=false;$('next').classList.add('hidden');$('feedback').textContent='';round++;
   $('roundText').textContent=infinite?`${round}/∞`:`${round}/${maxRounds}`;$('streakText').textContent=versus?players[currentPlayer].streak:streak;
   if(versus){$('turnPill').classList.remove('hidden');$('turnPill').textContent='Turno: '+players[currentPlayer].name}
-  current=pick();const opts=choices(current);let q='';
+  current=pick();let opts=choices(current);let q='';
+  // Solo necesitamos los detalles de los Pokémon que aparecen en esta ronda.
+  // Esto evita descargar los 1025 registros al iniciar la página.
+  if(mode==='color'){
+    current=await fetchPokemonDetail(current);
+  }else{
+    const needed=opts;
+    const details=await Promise.all(needed.map(fetchPokemonDetail));
+    current=details[details.findIndex(p=>p.id===current.id)]||details[0];
+    opts=details;
+  }
+  // Adelantamos algunos datos en segundo plano para la siguiente ronda.
+  preloadPokemonDetails(dex.filter(p=>!usedIds.has(p.id)).sort(()=>Math.random()-.5));
   currentQuestionMode=mode;
   if(mode==='mix') currentQuestionMode=['silhouette','pokedex','stats'][Math.floor(Math.random()*3)];
   if(mode==='color'){
