@@ -502,12 +502,7 @@ button.answer.wrong:hover{
   .answer.desc-answer .desc-answer-name{flex:1;min-width:0;overflow-wrap:anywhere}
   .answer.desc-answer img.desc-answer-sprite{width:46px;height:46px;object-fit:contain;image-rendering:pixelated;flex:0 0 46px;filter:none!important;background:transparent!important;padding:0!important;border:0!important;box-shadow:none!important}
   @media(max-width:650px){.answer.desc-answer img.desc-answer-sprite{width:40px;height:40px;flex-basis:40px}.answer.desc-answer{min-height:54px}}
-</style><style id="final-polish">
-.account-panel{margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#eef2f5;border:1px solid #d0d7de;border-radius:12px;padding:12px 14px;color:#18212b}.account-panel .hint{margin:3px 0 0;color:#536170}.account-panel button{margin-left:auto}.statgrid{grid-template-columns:1fr;max-width:760px}.stat{display:grid;grid-template-columns:130px 1fr 54px;align-items:center;gap:10px}.stat small{font-weight:800}.stat-bar{height:9px;background:#d6dde4;border-radius:999px;overflow:hidden}.stat-fill{height:100%;width:var(--w);background:#4eb8f7;border-radius:999px;transition:width .25s ease}.stat b{text-align:right}.round-timer{font-size:1.05rem;min-width:82px;text-align:center}.round-timer.warn{background:#ffefe0!important;border-color:#e6a04f!important;color:#7a3b00!important}.reveal-sprite{animation:revealPop .32s ease-out}.online-sil.revealed{filter:none!important}.color-swatch{transition:transform .18s ease}.color-swatch:hover{transform:scale(1.02)}
-@media(max-width:650px){.account-panel{align-items:stretch}.account-panel button{margin-left:0;width:100%}.stat{grid-template-columns:92px 1fr 46px;gap:7px;font-size:13px}.stat b{font-size:16px}}
-@keyframes revealPop{from{opacity:.15;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
-</style>
-</head>
+</style></head>
 <body>
 <div class="app">
 <header class="top"><div class="brand">Pokémon <span>1025</span> Quiz</div><div id="status" class="pill">Cargando Pokédex…</div></header>
@@ -528,7 +523,6 @@ button.answer.wrong:hover{
     <label>Rondas <select id="rounds"><option>5</option><option selected>10</option><option>15</option><option>20</option><option value="infinite">∞ Infinito</option></select></label>
     <label>Nombre <input id="playerName" maxlength="18" value="Jugador"></label>
   </div>
-  <div id="accountPanel" class="account-panel"><div><strong>👤 Cuenta</strong><div id="accountStatus" class="hint">Sin iniciar sesión · el progreso local seguirá disponible.</div></div><button id="googleLoginBtn" class="secondary" type="button" onclick="signInWithGoogle()">Continuar con Google</button><button id="googleLogoutBtn" class="secondary hidden" type="button" onclick="signOutGoogle()">Cerrar sesión</button></div>
   <div class="leaderboard">
     <h2>🏆 Leaderboard</h2>
     <p class="hint">Clasificaciones guardadas en este navegador. Se separan por modo y también por dificultad.</p>
@@ -574,7 +568,6 @@ button.answer.wrong:hover{
 </section>
 
 <section id="game" class="card hidden">
-  <div id="roundTimer" class="pill round-timer hidden" aria-live="polite"></div>
   <div class="row between">
     <div><span class="pill">Ronda <strong id="roundText"></strong></span> <span class="pill">Racha <strong id="streakText">0</strong></span><span id="mixPill" class="pill hidden">🎲 MIX · INFINITO</span><span id="mixTimer" class="pill hidden">⏱️ 40s</span></div>
     <div id="turnPill" class="pill hidden"></div>
@@ -686,14 +679,11 @@ function beginSingle(){
   startGame();
 }
 function startGame(){stopMixTimer();usedIds=new Set();$('setup').classList.add('hidden');$('home').classList.add('hidden');$('results').classList.add('hidden');$('game').classList.remove('hidden');playRetroMusic();nextRound();}
-let recentIds=[];
 function pick(excludeCurrent=false){
-  let pool=dex.filter(p=>!usedIds.has(p.id) && !recentIds.includes(p.id) && (!excludeCurrent || !current || p.id!==current.id));
-  if(!pool.length) pool=dex.filter(p=>!usedIds.has(p.id) && (!excludeCurrent || !current || p.id!==current.id));
-  if(!pool.length){ usedIds.clear(); pool=dex.filter(p=>!recentIds.includes(p.id) && (!excludeCurrent || !current || p.id!==current.id)); }
-  if(!pool.length) pool=dex.filter(p=>!excludeCurrent || !current || p.id!==current.id);
+  let pool=dex.filter(p=>!usedIds.has(p.id) && (!excludeCurrent || !current || p.id!==current.id));
+  if(!pool.length){ usedIds.clear(); pool=dex.filter(p=>!excludeCurrent || !current || p.id!==current.id); }
   const p=pool[Math.floor(Math.random()*pool.length)];
-  usedIds.add(p.id); recentIds.push(p.id); if(recentIds.length>20)recentIds.shift(); return p;
+  usedIds.add(p.id); return p;
 }
 function choices(correct){
   const set=new Set([correct.id]);while(set.size<4){const q=dex[Math.floor(Math.random()*dex.length)]; if(q.id!==correct.id)set.add(q.id);}
@@ -874,17 +864,14 @@ async function nextRound(){
   if(mode==='mix') currentQuestionMode=['silhouette','pokedex','stats'][Math.floor(Math.random()*3)];
 
   let opts=[];
-  if(mode==='color'){
+  if(currentQuestionMode==='silhouette' || mode==='color'){
+    // Solo hace falta el Pokémon correcto.
     current=await fetchPokemonDetail(current);
-  }else if(currentQuestionMode==='silhouette'){
-    opts=choices(current);
-    const details=await Promise.all(opts.map(fetchPokemonDetail));
-    current=details[details.findIndex(p=>p.id===current.id)]||current;
-    opts=details;
   }else{
+    // Descripción, estadísticas y modos de respuesta múltiple necesitan opciones.
     opts=choices(current);
     const details=await Promise.all(opts.map(fetchPokemonDetail));
-    current=details[details.findIndex(p=>p.id===current.id)]||current;
+    current=details[details.findIndex(p=>p.id===current.id)]||details[0];
     opts=details;
   }
 
@@ -902,7 +889,7 @@ async function nextRound(){
     await ensureSpecies(current);
     q=`<div class="prompt">🎲 MIX · ¿Qué Pokémon es? · Descripción</div><div class="desc">${descFor(current)}</div>`;
   } else if(currentQuestionMode==='stats'){
-    const stats=current.stats||[]; q=`<div class="prompt">${mode==='mix'?'🎲 MIX · ':''}¿Qué Pokémon tiene estas estadísticas?</div><div class="statgrid">${stats.map(s=>`<div class="stat"><small>${pretty(s.stat.name)}</small><div class="stat-bar"><div class="stat-fill" style="--w:${Math.min(100,(s.base_stat/250)*100)}%"></div></div><b>${s.base_stat}</b></div>`).join('')}</div>`;
+    q=`<div class="prompt">🎲 MIX · ¿Qué Pokémon tiene estas estadísticas?</div><div class="statgrid">${current.stats.map(s=>`<div class="stat"><small>${pretty(s.stat.name)}</small><b>${s.base_stat}</b></div>`).join('')}</div>`;
   } else {
     const sprite=normalSprite(current);
     q=`<div class="prompt">${mode==='mix'?'🎲 MIX · ':''}¿Quién es este Pokémon?</div><img class="sprite silhouette sil-${difficulty}" src="${sprite}" alt="Silueta normal">`;
@@ -914,7 +901,7 @@ async function nextRound(){
     $('colorGuess').focus();
   }else{
     $('answers').innerHTML=opts.map(p=>currentQuestionMode==='pokedex'?`<button class="answer desc-answer" onclick="answer(${p.id},this)"><span class="desc-answer-name">${pretty(p.name)}</span><img class="desc-answer-sprite" src="${normalSprite(p)}" alt="" loading="lazy" decoding="async"></button>`:`<button class="answer" onclick="answer(${p.id},this)">${pretty(p.name)}</button>`).join('');
-  }
+  }  }
   if(mode==='mix' && !versus) startMixTimer();
 }
 
@@ -1136,7 +1123,6 @@ window.addEventListener("load",()=>{
 });
 </script>
 
-<script src="./firebase-config.js"></script>
 <script src="./versus-config.js"></script>
 <script id="pwa-register">
 if ('serviceWorker' in navigator) {
@@ -1149,7 +1135,6 @@ const ONLINE_SERVER = window.VERSUS_SERVER_URL ||
   (window.POKEMON_QUIZ_CONFIG && window.POKEMON_QUIZ_CONFIG.versusServer) ||
   ((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
 let vsSocket=null,vsRoom='',vsOnline=false,vsScore=0,vsOppScore=0,vsOppName='Rival',vsQuestion=null,vsAnswered=false,vsColorWrongCount=0;
-let onlineTimerId=null,onlineTimeLeft=40;function stopOnlineTimer(){if(onlineTimerId){clearInterval(onlineTimerId);onlineTimerId=null}const el=$('roundTimer');if(el){el.classList.add('hidden');el.classList.remove('warn')}}function startOnlineTimer(){stopOnlineTimer();onlineTimeLeft=40;const el=$('roundTimer');if(!el)return;el.classList.remove('hidden');el.textContent='⏱️ 40s';onlineTimerId=setInterval(()=>{onlineTimeLeft--;el.textContent=`⏱️ ${onlineTimeLeft}s`;if(onlineTimeLeft<=10)el.classList.add('warn');if(onlineTimeLeft<=0){stopOnlineTimer();$('feedback').textContent='⏱️ Tiempo agotado…';}},1000)}
 window.showVersusPanel=function(w){$('versusPrivatePanel').classList.toggle('hidden',w!=='private');$('versusPublicPanel').classList.toggle('hidden',w!=='public');$('vtabPrivate').className=w==='private'?'primary':'secondary';$('vtabPublic').className=w==='public'?'primary':'secondary'};
 window.setVersusRole=function(r){$('versusHostForm').classList.toggle('hidden',r!=='host');$('versusGuestForm').classList.toggle('hidden',r!=='guest')};
 function connect(cb){if(vsSocket&&vsSocket.readyState===1)return cb();try{vsSocket=new WebSocket(ONLINE_SERVER)}catch(e){return alert('No se pudo abrir la conexión Versus. Configura VERSUS_SERVER_URL.')};vsSocket.onopen=cb;vsSocket.onmessage=e=>{try{handle(JSON.parse(e.data))}catch(x){console.error(x)}};vsSocket.onclose=()=>{if(vsOnline)$('feedback').textContent='Conexión cerrada.'};setInterval(()=>{if(vsSocket&&vsSocket.readyState===1)vsSocket.send(JSON.stringify({type:'ping'}))},20000)}
@@ -1161,9 +1146,7 @@ window.leaveVersusOnline=function(){try{send({type:'leave'})}catch(e){}vsOnline=
 function modeName(m){return {silhouette_normal:'Silueta Normal',pokedex:'Descripción',stats:'Estadísticas',mix:'Mix',color:'Color'}[m]||m}
 function board(){let b=document.getElementById('onlineBoard');if(!b){b=document.createElement('div');b.id='onlineBoard';b.className='online-vs-board';$('question').before(b)}b.innerHTML=`<div class="online-player"><strong>${escapeHtml(singlePlayerName||'Jugador')}</strong><div class="big">${vsScore}</div><small>puntos</small></div><div class="online-player"><strong>${escapeHtml(vsOppName)}</strong><div class="big">${vsOppScore}</div><small>puntos</small></div>`}
 async function renderQ(q){vsQuestion=q;vsAnswered=false;vsColorWrongCount=0;current=dex.find(p=>p.id===q.pokemonId);if(!current)return;$('roundText').textContent=`${q.round}/10`;$('streakText').textContent=vsScore;$('turnPill').classList.remove('hidden');$('turnPill').textContent='⚔️ '+modeName(q.mode);$('feedback').textContent='';
-let opts=(q.options||[]).map(id=>dex.find(p=>p.id===id)).filter(Boolean);
-if(q.mode==='color'){current=await fetchPokemonDetail(current)}else{opts=await Promise.all(opts.map(fetchPokemonDetail));current=opts.find(p=>p.id===q.pokemonId)||await fetchPokemonDetail(current)}
-let html='';if(q.mode==='color'){let info=await colorInfo(current),hex=colorMap[info.color]||'#b8bec6';html=`<div class="prompt">🎨 COLOR · ¿Qué Pokémon tiene este color?</div><div class="online-swatch" style="background:${hex}"></div><div class="hint">Tienes 6 intentos. Cada fallo desbloquea una pista.</div><div id="onlineHints" class="online-hints"></div>`}else if(q.mode==='pokedex'){await ensureSpecies(current);html=`<div class="prompt">📖 ¿Qué Pokémon es?</div><div class="desc">${descFor(current)}</div>`}else if(q.mode==='stats'){html=`<div class="prompt">📊 ¿Qué Pokémon tiene estas estadísticas?</div><div class="statgrid">${(current.stats||[]).map(s=>`<div class="stat"><small>${pretty(s.stat.name)}</small><div class="stat-bar"><div class="stat-fill" style="--w:${Math.min(100,(s.base_stat/250)*100)}%"></div></div><b>${s.base_stat}</b></div>`).join('')}</div>`}else{html=`<div class="prompt">🌑 ¿Qué Pokémon es?</div><img class="sprite silhouette sil-normal online-sprite online-sil" src="${normalSprite(current)}" alt="Silueta normal">`}
+let opts=(q.options||[]).map(id=>dex.find(p=>p.id===id)).filter(Boolean),html='';if(q.mode==='color'){let info=await colorInfo(current),hex=colorMap[info.color]||'#b8bec6';html=`<div class="prompt">🎨 COLOR · ¿Qué Pokémon tiene este color?</div><div class="online-swatch" style="background:${hex}"></div><div class="hint">Tienes 6 intentos. Cada fallo desbloquea una pista.</div><div id="onlineHints" class="online-hints"></div>`}else if(q.mode==='pokedex'){await ensureSpecies(current);html=`<div class="prompt">📖 ¿Qué Pokémon es?</div><div class="desc">${descFor(current)}</div>`}else if(q.mode==='stats'){html=`<div class="prompt">📊 ¿Qué Pokémon tiene estas estadísticas?</div><div class="statgrid">${current.stats.map(s=>`<div class="stat"><small>${pretty(s.stat.name)}</small><b>${s.base_stat}</b></div>`).join('')}</div>`}else{html=`<div class="prompt">🌑 ¿Qué Pokémon es?</div><img class="online-sprite online-sil" src="${normalSprite(current)}" alt="Silueta normal">`}
 $('question').innerHTML=html;
 if(q.mode==='color'){
   $('answers').innerHTML=`<div class="color-input-wrap"><input id="colorGuess" class="color-guess" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Escribe el nombre del Pokémon" aria-label="Nombre del Pokémon"><button id="colorGuessBtn" class="primary" type="button" onclick="submitOnlineColorGuess()">Comprobar</button></div>`;
@@ -1173,68 +1156,54 @@ if(q.mode==='color'){
   $('answers').innerHTML=opts.map(p=>q.mode==='pokedex'?`<button class="answer desc-answer" data-id="${p.id}"><span class="desc-answer-name">${pretty(p.name)}</span><img class="desc-answer-sprite" src="${normalSprite(p)}" alt="" loading="lazy" decoding="async"></button>`:`<button class="answer" data-id="${p.id}">${pretty(p.name)}</button>`).join('');
   document.querySelectorAll('#answers .answer').forEach(b=>b.onclick=()=>answer(+b.dataset.id,b));
 }
-if(q.mode==='color')updateHints(q.hints||0,q.shiny||false,current);startOnlineTimer();board()}
+if(q.mode==='color')updateHints(q.hints||0,q.shiny||false,current);board()}
 async function updateHints(n,shiny,p){if(!$('onlineHints'))return;const info=await colorInfo(p);const h=[['Pista 1 · Tamaño',`${info.height} · ${info.weight}`],['Pista 2 · Localización',info.locations],['Pista 3 · Generación',info.generation],['Pista 4 · Tipo',info.type],['Pista 5 · Estadísticas',info.stats]];$('onlineHints').innerHTML=h.map((x,i)=>`<div class="online-hint ${i<n?'':'locked'}"><strong>${x[0]}</strong>${i<n?x[1]:'🔒 Pista bloqueada'}</div>`).join('')}
 window.submitOnlineColorGuess=async function(){
   if(vsAnswered)return;
   const input=$('colorGuess'),value=(input?.value||'').trim();
   if(!value){$('feedback').textContent='Escribe el nombre de un Pokémon.';input?.focus();return}
   try{
-    const slug=normalizePokemonName(value);
-    if(!slug){return}
-    const lookup=await fetch(`${API}/pokemon/${slug}`).then(r=>r.ok?r.json():null);
-    if(!lookup){$('feedback').textContent='Ese nombre no corresponde a un Pokémon reconocido.';input?.select();return}
-    send({type:'answer',answerId:Number(lookup.id)});
-  }catch(e){$('feedback').textContent='No se pudo comprobar ahora. Inténtalo de nuevo.';input?.focus()}
+    const correct=await fetchPokemonDetail({id:Number(vsQuestion?.correctId),url:`${API}/pokemon/${vsQuestion?.correctId}/`});
+    if(normalizePokemonName(correct.name)!==normalizePokemonName(value)){
+      vsColorWrongCount++;
+      send({type:'answer',answerId:0});
+      if(vsColorWrongCount>=6){
+        vsAnswered=true;
+        if(input)input.disabled=true;
+        if($('colorGuessBtn'))$('colorGuessBtn').disabled=true;
+        $('feedback').textContent=`✗ Has agotado los 6 intentos.`;
+      }else{
+        $('feedback').textContent=`✗ No es ese. Intento ${vsColorWrongCount}/6 · Pista ${vsColorWrongCount} desbloqueada.`;
+        input?.select(); input?.focus();
+      }
+      return;
+    }
+    vsAnswered=true;
+    send({type:'answer',answerId:correct.id});
+  }catch(e){
+    $('feedback').textContent='No se pudo comprobar ahora. Inténtalo de nuevo.';
+    input?.focus();
+  }
 };
-function answer(id,btn){if(vsAnswered)return;vsAnswered=true;send({type:'answer',answerId:id});document.querySelectorAll('#answers .answer').forEach(b=>b.disabled=true);btn.classList.add('selected')}
+function answer(id,btn){if(vsAnswered)return;vsAnswered=true;send({type:'answer',answerId:id});document.querySelectorAll('#answers .answer').forEach(b=>b.disabled=true);btn.classList.add(id===vsQuestion.correctId?'correct':'wrong');if(id!==vsQuestion.correctId)document.querySelector(`#answers .answer[data-id="${vsQuestion.correctId}"]`)?.classList.add('correct')}
 function handle(m){if(m.type==='private_created'){vsRoom=m.code;vsOnline=true;$('hostLobbyInfo').classList.remove('hidden');$('hostLobbyInfo').innerHTML=`Lobby creada · Código <strong>${m.code}</strong><br>Comparte código y contraseña.<br><span class="online-wait">Esperando Guest…</span>`}else if(m.type==='waiting')$('publicStatus').textContent=m.message||'Buscando rival…';else if(m.type==='match_ready'){vsRoom=m.room;vsOnline=true;vsOppName=m.opponentName||'Rival';vsScore=0;vsOppScore=0;$('setup').classList.add('hidden');$('home').classList.add('hidden');$('game').classList.remove('hidden');playRetroMusic()}else if(m.type==='round')renderQ(m);else if(m.type==='opponent_score'){vsOppScore=m.score;board()}else if(m.type==='hint'){if(vsQuestion)updateHints(m.hints,m.shiny,current);$('feedback').textContent=`Pista desbloqueada (${m.hints}/5)`}else if(m.type==='answer_result'){
-  if(m.correct)stopOnlineTimer();
-  else if(vsQuestion?.mode!=='color')stopOnlineTimer();
   if(m.correct){
     vsScore+=m.points;
     vsAnswered=true;
     if(vsQuestion?.mode==='silhouette_normal'){document.querySelector('#question img.sprite.silhouette')?.classList.add('revealed');}
     if($('colorGuess')){$('colorGuess').disabled=true;$('colorGuessBtn').disabled=true}
-    $('feedback').textContent=`✓ +${m.points} puntos`; if(m.correctId&&vsQuestion?.mode==='silhouette_normal')document.querySelector('#question img.sprite')?.classList.add('revealed');
+    $('feedback').textContent=`✓ +${m.points} puntos`;
   }else{
     if(vsQuestion?.mode==='silhouette_normal'){document.querySelector('#question img.sprite.silhouette')?.classList.add('revealed');}
     if(vsQuestion?.mode==='color'){
       vsAnswered=false;
       if($('colorGuess')){$('colorGuess').select();$('colorGuess').focus()}
     }
-    $('feedback').textContent=vsQuestion?.mode==='color'?(m.exhausted?`✗ Has agotado los 6 intentos.`:`✗ No es ese. Pista desbloqueada.`):`✗ No es ese`; if(vsQuestion?.mode==='color'&&m.exhausted){vsAnswered=true;if($('colorGuess'))$('colorGuess').disabled=true;if($('colorGuessBtn'))$('colorGuessBtn').disabled=true} if(vsQuestion?.mode==='color'&&m.exhausted){const img=normalSprite(current); if(img)$('question').insertAdjacentHTML('afterbegin',`<img class="sprite color-reveal-sprite reveal-sprite" src="${img}" alt="${pretty(current.name)}">`)}
+    $('feedback').textContent=vsQuestion?.mode==='color'?(m.exhausted?`✗ Has agotado los 6 intentos.`:`✗ No es ese. Pista desbloqueada.`):`✗ No es ese`; if(vsQuestion?.mode==='color'&&m.exhausted){vsAnswered=true;if($('colorGuess'))$('colorGuess').disabled=true;if($('colorGuessBtn'))$('colorGuessBtn').disabled=true}
   }
   board()
-}else if(m.type==='timeout'){stopOnlineTimer();vsAnswered=true;if(vsQuestion?.mode==='silhouette_normal')document.querySelector('#question img.sprite')?.classList.add('revealed');$('feedback').textContent='⏱️ Tiempo agotado. Se ha registrado un fallo.';}else if(m.type==='game_over'){stopOnlineTimer();vsScore=m.score;vsOppScore=m.opponentScore;board();$('game').classList.add('hidden');$('results').classList.remove('hidden');$('resultList').innerHTML=`<div class="online-result"><h3>${m.winner==='you'?'🏆 ¡Has ganado!':m.winner==='draw'?'🤝 Empate':'💥 Has perdido'}</h3><p>${escapeHtml(m.reason||'')}</p><p><strong>Tú:</strong> ${m.score} · <strong>Rival:</strong> ${m.opponentScore}</p></div>`}else if(m.type==='error')alert(m.message||'Error en Versus online.')}
+}else if(m.type==='game_over'){vsScore=m.score;vsOppScore=m.opponentScore;board();$('game').classList.add('hidden');$('results').classList.remove('hidden');$('resultList').innerHTML=`<div class="online-result"><h3>${m.winner==='you'?'🏆 ¡Has ganado!':m.winner==='draw'?'🤝 Empate':'💥 Has perdido'}</h3><p>${escapeHtml(m.reason||'')}</p><p><strong>Tú:</strong> ${m.score} · <strong>Rival:</strong> ${m.opponentScore}</p></div>`}else if(m.type==='error')alert(m.message||'Error en Versus online.')}
 const oldStart=window.start;window.start=function(m){if(m!=='versus')return oldStart(m);stopRetroMusic();stopMenuMusic();mode='versus';versus=true;singlePlayerName=($('playerName').value||'Jugador').trim().slice(0,18)||'Jugador';$('home').classList.add('hidden');$('setup').classList.remove('hidden');$('game').classList.add('hidden');$('results').classList.add('hidden');showVersusPanel('private');setVersusRole('')};
 })();
-</script><script id="performance-and-accounts">
-(function(){
-  const DB='quizdex-cache-v3', STORE='pokemon'; let dbPromise;
-  function openDB(){if(dbPromise)return dbPromise;dbPromise=new Promise((resolve,reject)=>{if(!window.indexedDB)return reject(new Error('IndexedDB unavailable'));const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE,{keyPath:'id'})};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});return dbPromise}
-  async function dbGet(id){try{const db=await openDB();return await new Promise((res,rej)=>{const q=db.transaction(STORE,'readonly').objectStore(STORE).get(id);q.onsuccess=()=>res(q.result?.data||null);q.onerror=()=>rej(q.error)})}catch{return null}}
-  async function dbPut(data){try{const db=await openDB();await new Promise((res,rej)=>{const q=db.transaction(STORE,'readwrite').objectStore(STORE).put({id:data.id,data});q.onsuccess=()=>res();q.onerror=()=>rej(q.error)})}catch{}}
-  const oldDetail=fetchPokemonDetail;
-  async function cachedDetail(p){const id=p?.id||Number(String(p?.url||'').match(/\/(\d+)\/?$/)?.[1]);if(!id)return p;if(pokemonDetailCache.has(id))return pokemonDetailCache.get(id);const cached=await dbGet(id);if(cached){pokemonDetailCache.set(id,cached);const pos=dex.findIndex(x=>x.id===id);if(pos>=0)dex[pos]=cached;return cached}const full=await oldDetail(p);if(full?.id)dbPut(full);return full}
-  try{fetchPokemonDetail=cachedDetail}catch{} window.fetchPokemonDetail=cachedDetail;
-  const oldEnsure=ensureSpecies;
-  async function cachedSpecies(p){if(p.speciesData)return;const key=100000+p.id;const cached=await dbGet(key);if(cached){p.speciesData=cached;return}await oldEnsure(p);if(p.speciesData)dbPut({id:key,...p.speciesData})}
-  try{ensureSpecies=cachedSpecies}catch{} window.ensureSpecies=cachedSpecies;
-  window.addEventListener('load',()=>{const n=$('playerName');const saved=localStorage.getItem('quizdex-player-name');if(saved&&n)n.value=saved;n?.addEventListener('change',()=>localStorage.setItem('quizdex-player-name',n.value.trim().slice(0,18)));initFirebaseAuth()});
-
-  let firebaseApp=null,auth=null,user=null,firestore=null;
-  async function firebaseModules(){const app=await import('https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js');const a=await import('https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js');const f=await import('https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js');return {app,a,f}}
-  async function initFirebaseAuth(){try{const cfg=window.POKEMON_QUIZ_FIREBASE_CONFIG;if(!cfg?.apiKey)return;const {app,a,f}=await firebaseModules();firebaseApp=app.getApps()[0]||app.initializeApp(cfg);auth=a.getAuth(firebaseApp);firestore=f.getFirestore(firebaseApp);a.onAuthStateChanged(auth,u=>{user=u||null;updateAccountUI()})}catch(e){console.debug('Firebase no configurado',e)}}
-  window.signInWithGoogle=async function(){try{const cfg=window.POKEMON_QUIZ_FIREBASE_CONFIG;if(!cfg?.apiKey){alert('Configura primero firebase-config.js con tu proyecto Firebase.');return}const {app,a,f}=await firebaseModules();firebaseApp=app.getApps()[0]||app.initializeApp(cfg);auth=auth||a.getAuth(firebaseApp);firestore=firestore||f.getFirestore(firebaseApp);await a.setPersistence(auth,a.browserLocalPersistence);const result=await a.signInWithPopup(auth,new a.GoogleAuthProvider());user=result.user;updateAccountUI()}catch(e){console.error(e);alert('No se pudo iniciar sesión con Google. Revisa el dominio autorizado y la configuración de Firebase.')}};
-  window.signOutGoogle=async function(){try{if(auth){const {a}=await firebaseModules();await a.signOut(auth)}}catch(e){}user=null;updateAccountUI()};
-  function updateAccountUI(){const st=$('accountStatus'),login=$('googleLoginBtn'),out=$('googleLogoutBtn');if(!st)return;if(user){st.textContent=`Sesión iniciada como ${user.displayName||user.email||'usuario'}. Tu progreso puede sincronizarse en la nube.`;login?.classList.add('hidden');out?.classList.remove('hidden');if(user.displayName&&$('playerName')){$('playerName').value=user.displayName.slice(0,18);localStorage.setItem('quizdex-player-name',$('playerName').value)}}else{st.textContent='Sin iniciar sesión · el progreso local seguirá disponible.';login?.classList.remove('hidden');out?.classList.add('hidden')}}
-  window.__quizdexAccount={getUser:()=>user,getFirestore:()=>firestore,getFirebaseModules:firebaseModules};
-  const originalSaveScore=window.saveScore;
-  window.saveScore=async function(name,points){originalSaveScore(name,points);if(!user||!firestore)return;try{const {f}=await firebaseModules();await f.addDoc(f.collection(firestore,'scores'),{uid:user.uid,name:(name||user.displayName||'Jugador').slice(0,18),score:Number(points)||0,mode,difficulty,kind:infinite?'infinite':'finite',date:new Date().toISOString()})}catch(e){console.debug('No se pudo sincronizar puntuación',e)}};
-  const originalRenderLeaderboard=window.renderLeaderboard;
-  window.renderLeaderboard=async function(){originalRenderLeaderboard();if(!user||!firestore)return;try{const {f}=await firebaseModules();const root=$('leaderboard');if(!root)return;const keyMode=mode;const q=f.query(f.collection(firestore,'scores'),f.where('mode','==',keyMode),f.limit(200));const snap=await f.getDocs(q);if(snap.empty)return;const data=snap.docs.map(d=>d.data()).filter(x=>x.difficulty===difficulty&&x.kind===(infinite?'infinite':'finite')).sort((a,b)=>(b.score||0)-(a.score||0)).slice(0,10);if(!data.length)return;const rows=data.map((x,i)=>`<div class="lb-row"><b>${i+1}</b><span>${escapeHtml(x.name||'Jugador')}</span><strong>${x.score||0}</strong></div>`).join('');root.insertAdjacentHTML('beforeend',`<div class="lb-card" style="margin-top:12px"><h3>🌐 Ranking global · ${escapeHtml(modeLabels[keyMode]||keyMode)}</h3>${rows}</div>`)}catch(e){console.debug('Ranking global no disponible',e)}};
-})();
-</script>
-</body>
+</script></body>
 </html>
