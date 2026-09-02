@@ -481,7 +481,7 @@ button.answer.wrong:hover{
 
 <section id="home" class="card">
   <h1>Elige un modo</h1>
-  <p class="hint">Pokémon #001–#1025 · Gen I → IX · datos y sprites desde PokéAPI.</p>
+  <p class="hint">Pokémon #001–#1025 · Gen I → IX · datos y sprites desde PokéAPI · índice local para carga rápida.</p>
   <div class="menu">
     <button class="mode" onclick="start('silhouette_normal')"><b>🌑 SILUETA NORMAL</b><small>Los 1025 Pokémon con sus sprites actuales de PokéAPI convertidos en siluetas.</small></button>
     <button class="mode" onclick="start('silhouette_retro')"><b>🕹️ SILUETA RETRO</b><small>Los 1025 Pokémon usando sprites de Pokémon Black/White (5ª generación), convertidos en siluetas.</small></button>
@@ -594,20 +594,19 @@ function preloadPokemonDetails(list){
   });
 }
 
-async function loadDex(){
-  try{
-    // Solo descargamos el índice al abrir la web. Los detalles se cargan bajo demanda.
-    // El Service Worker los guarda en caché para que las siguientes partidas sean mucho más rápidas.
-    const r=await fetch(API+`/pokemon?limit=${MAX_POKEMON}`);
-    const j=await r.json();
-    dex=j.results.map((x,i)=>({
-      id:Number(String(x.url).match(/\/(\d+)\/?$/)?.[1])||i+1,
-      name:x.name,
-      url:x.url,
-      species:{url:`${API}/pokemon-species/${Number(String(x.url).match(/\/(\d+)\/?$/)?.[1])||i+1}/`}
-    }));
-    $('status').textContent='Pokédex lista · '+dex.length+' Pokémon';
-  }catch(e){$('status').textContent='Error cargando PokéAPI'; alert('No se pudo cargar PokéAPI. Comprueba tu conexión y vuelve a abrir el juego.');}
+function loadDex(){
+  // El índice nacional se genera localmente: no hay petición inicial a PokéAPI.
+  // Los detalles completos se solicitan solo cuando un Pokémon entra en una ronda.
+  dex=Array.from({length:MAX_POKEMON},(_,i)=>{
+    const id=i+1;
+    return {
+      id,
+      name:'',
+      url:`${API}/pokemon/${id}/`,
+      species:{url:`${API}/pokemon-species/${id}/`}
+    };
+  });
+  $('status').textContent='Pokédex lista · '+dex.length+' Pokémon';
 }
 function goHome(){
   stopRetroMusic();
@@ -984,13 +983,23 @@ if(q.mode==='color'){
 }
 if(q.mode==='color')updateHints(q.hints||0,q.shiny||false,current);board()}
 async function updateHints(n,shiny,p){if(!$('onlineHints'))return;await ensureSpecies(p);let sp=p.speciesData||{},loc='No disponible';try{let j=await (await fetch(`${API}/pokemon/${p.id}/encounters`)).json();loc=[...new Set(j.map(x=>x.location_area?.name).filter(Boolean).map(x=>pretty(x)))].slice(0,4).join(', ')||loc}catch(e){}let eggs=(sp.egg_groups||[]).map(x=>pretty(x.name)).join(', ')||'No disponible';let gen=pretty((sp.generation?.name||'').replace('generation-','Generación '));let h=[['Pista 1 · Tamaño',`${(p.height/10).toFixed(1)} m · ${(p.weight/10).toFixed(1)} kg`],['Pista 2 · Estadísticas',p.stats.map(x=>`${pretty(x.stat.name)} ${x.base_stat}`).join(' · ')],['Pista 3 · Localización',loc],['Pista 4 · Grupo huevo',shiny?'✨ Es un Pokémon shiny':eggs],['Pista 5 · Generación',gen]];$('onlineHints').innerHTML=h.map((x,i)=>`<div class="online-hint ${i<n?'':'locked'}"><strong>${x[0]}</strong>${i<n?x[1]:'🔒 Pista bloqueada'}</div>`).join('')}
-window.submitOnlineColorGuess=function(){
+window.submitOnlineColorGuess=async function(){
   if(vsAnswered)return;
   const input=$('colorGuess'),value=(input?.value||'').trim();
   if(!value){$('feedback').textContent='Escribe el nombre de un Pokémon.';input?.focus();return}
-  const match=dex.find(p=>normalizePokemonName(p.name)===normalizePokemonName(value));
-  if(!match){$('feedback').textContent='No reconozco ese nombre de Pokémon. Prueba de nuevo.';input?.focus();return}
-  send({type:'answer',answerId:match.id});
+  try{
+    const correct=await fetchPokemonDetail({id:Number(vsQuestion?.correctId),url:`${API}/pokemon/${vsQuestion?.correctId}/`});
+    if(normalizePokemonName(correct.name)!==normalizePokemonName(value)){
+      $('feedback').textContent='✗ No es ese. Pista desbloqueada.';
+      input?.select(); input?.focus();
+      return;
+    }
+    vsAnswered=true;
+    send({type:'answer',answerId:correct.id});
+  }catch(e){
+    $('feedback').textContent='No se pudo comprobar ahora. Inténtalo de nuevo.';
+    input?.focus();
+  }
 };
 function answer(id,btn){if(vsAnswered)return;vsAnswered=true;send({type:'answer',answerId:id});document.querySelectorAll('#answers .answer').forEach(b=>b.disabled=true);btn.classList.add(id===vsQuestion.correctId?'correct':'wrong');if(id!==vsQuestion.correctId)document.querySelector(`#answers .answer[data-id="${vsQuestion.correctId}"]`)?.classList.add('correct')}
 function handle(m){if(m.type==='private_created'){vsRoom=m.code;vsOnline=true;$('hostLobbyInfo').classList.remove('hidden');$('hostLobbyInfo').innerHTML=`Lobby creada · Código <strong>${m.code}</strong><br>Comparte código y contraseña.<br><span class="online-wait">Esperando Guest…</span>`}else if(m.type==='waiting')$('publicStatus').textContent=m.message||'Buscando rival…';else if(m.type==='match_ready'){vsRoom=m.room;vsOnline=true;vsOppName=m.opponentName||'Rival';vsScore=0;vsOppScore=0;$('setup').classList.add('hidden');$('home').classList.add('hidden');$('game').classList.remove('hidden');playRetroMusic()}else if(m.type==='round')renderQ(m);else if(m.type==='opponent_score'){vsOppScore=m.score;board()}else if(m.type==='hint'){if(vsQuestion)updateHints(m.hints,m.shiny,current);$('feedback').textContent=`Pista desbloqueada (${m.hints}/5)`}else if(m.type==='answer_result'){
