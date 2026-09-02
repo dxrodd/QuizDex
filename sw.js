@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pokemon-quiz-pwa-v2';
+const CACHE_NAME = 'pokemon-quiz-pwa-v3';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', event => {

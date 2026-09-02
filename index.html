@@ -468,7 +468,7 @@ button.answer.wrong:hover{
 .color-hints{width:min(760px,100%);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:16px auto 4px}
 .color-hint{background:#f4f6f8;border:1px solid #c5ced8;border-radius:10px;padding:10px;text-align:left;color:#18212b}
 .color-hint strong{display:block;font-size:12px;color:#536170;margin-bottom:3px}
-.color-hint.active{border-color:#8b5cf6;box-shadow:0 0 0 2px rgba(139,92,246,.12)}
+.color-hint.active{border-color:#8b5cf6;box-shadow:0 0 0 2px rgba(139,92,246,.12)}.color-input-wrap{display:flex;gap:10px;width:min(680px,100%);margin:16px auto 0;align-items:stretch}.color-guess{flex:1;min-width:0;background:#fff;color:#18212b;border:2px solid #c4ccd5;border-radius:10px;padding:12px 14px;font-size:17px}.color-guess:focus{outline:3px solid rgba(139,92,246,.2);border-color:#8b5cf6}@media(max-width:520px){.color-input-wrap{flex-direction:column}.color-input-wrap button{width:100%}}
 @media(max-width:700px){.color-hints{grid-template-columns:1fr}.color-hint{padding:9px}.color-swatch{width:min(210px,58vw);height:min(210px,58vw)}}
 
 .versus-tabs{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}.versus-role-grid{display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:12px;margin:14px 0}.mini-mode{min-height:100px;text-align:left}.versus-panel{padding:16px 0}.versus-form{margin-top:14px;padding:16px;background:#f5f7fa;border:1px solid #c5ced8;border-radius:12px}.lobby-info{margin-top:12px;padding:12px;border:1px solid #9da9b5;border-radius:10px;background:#eef2f6;font-weight:800}.online-vs-board{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}.online-player{padding:10px;border:1px solid #c5ced8;border-radius:10px;background:#f7f9fb}.online-player .big{font-size:24px}.online-result{margin-top:15px;padding:15px;border-radius:12px;background:#eef2f6;border:1px solid #c5ced8}.online-swatch{width:min(260px,70vw);height:min(260px,70vw);border-radius:20px;border:3px solid #b5c0cb;box-shadow:0 8px 20px rgba(20,32,45,.14);margin:18px auto}.online-sprite{width:220px;height:220px;object-fit:contain}.online-sil{filter:brightness(0) saturate(0) contrast(1.35) drop-shadow(0 18px 20px rgba(0,0,0,.35))}.online-hints{width:min(720px,100%);display:grid;gap:8px;margin-top:14px}.online-hint{padding:9px 12px;border-radius:8px;background:#eef2f6;border:1px solid #c5ced8;text-align:left}.online-hint strong{display:block}.online-hint.locked{opacity:.55}.online-wait{padding:20px;text-align:center;font-weight:900}@media(max-width:700px){.versus-role-grid,.online-vs-board{grid-template-columns:1fr}.versus-form .row{flex-direction:column;align-items:stretch}.online-sprite{width:180px;height:180px}}
@@ -662,7 +662,9 @@ function colorHintMarkup(info){
   ];
   return `<div class="color-hints">${hints.map((h,i)=>`<div class="color-hint ${i<colorWrongCount?'active':''}"><strong>${h[0]}</strong>${i<colorWrongCount?h[1]:'🔒 Pista bloqueada'}</div>`).join('')}</div>`;
 }
-async function nextRound(){
+async function normalizePokemonName(s){return String(s||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/♀/g,'f').replace(/♂/g,'m').replace(/[^a-z0-9]/g,'')} 
+function submitColorGuess(){if(answered)return;const input=$('colorGuess'),value=(input?.value||'').trim();if(!value){$('feedback').textContent='Escribe el nombre de un Pokémon.';input?.focus();return}const correct=normalizePokemonName(value)===normalizePokemonName(current.name);if(correct){answered=true;input.disabled=true;$('colorGuessBtn').disabled=true;streak++;const pts=100+(infinite?0:(maxRounds-round)*10);score+=pts;$('streakText').textContent=streak;$('feedback').textContent=`✓ ¡Correcto! +${pts} puntos`;$('next').classList.remove('hidden')}else{colorWrongCount=Math.min(5,colorWrongCount+1);const info=colorCache.get(current.id);const hints=document.querySelector('.color-hints');if(hints&&info)hints.outerHTML=colorHintMarkup(info);input.select();if(colorWrongCount>=5){answered=true;input.disabled=true;$('colorGuessBtn').disabled=true;streak=0;$('streakText').textContent=0;$('feedback').textContent=`✗ Era ${pretty(current.name)} · Has usado las 5 pistas`;$('next').classList.remove('hidden')}else{$('feedback').textContent=`✗ No es ese. Pista ${colorWrongCount}/5 desbloqueada`;input.focus()}}}
+function nextRound(){
   if(!infinite && round>=maxRounds){finish();return}
   answered=false;$('next').classList.add('hidden');$('feedback').textContent='';round++;
   $('roundText').textContent=infinite?`${round}/∞`:`${round}/${maxRounds}`;$('streakText').textContent=versus?players[currentPlayer].streak:streak;
@@ -683,32 +685,18 @@ async function nextRound(){
     const sprite=retro?gen5Sprite(current):normalSprite(current);
     q=`<div class="prompt">${mode==='mix'?'🎲 MIX · ':''}¿Quién es este Pokémon?</div><img class="sprite silhouette sil-${difficulty}" src="${sprite}" alt="${retro?'Silueta retro Gen 5':'Silueta normal'}">`;
   }
-  $('question').innerHTML=q;$('answers').innerHTML=opts.map(p=>`<button class="answer" onclick="answer(${p.id},this)">${pretty(p.name)}</button>`).join('');
+  $('question').innerHTML=q;
+  if(mode==='color'){
+    $('answers').innerHTML=`<div class="color-input-wrap"><input id="colorGuess" class="color-guess" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Escribe el nombre del Pokémon" aria-label="Nombre del Pokémon"><button id="colorGuessBtn" class="primary" type="button" onclick="submitColorGuess()">Comprobar</button></div>`;
+    $('colorGuess').addEventListener('keydown',e=>{if(e.key==='Enter')submitColorGuess()});
+    $('colorGuess').focus();
+  }else{
+    $('answers').innerHTML=opts.map(p=>`<button class="answer" onclick="answer(${p.id},this)">${pretty(p.name)}</button>`).join('');
+  }
 }
 function answer(id,btn){
   if(answered)return;
   const correct=id===current.id;
-  if(mode==='color' && !correct){
-    btn.disabled=true;
-    btn.classList.add('wrong');
-    colorWrongCount=Math.min(5,colorWrongCount+1);
-    const info=colorCache.get(current.id);
-    const hints=document.querySelector('.color-hints');
-    if(hints && info) hints.outerHTML=colorHintMarkup(info);
-    if(colorWrongCount>=5){
-      answered=true;
-      document.querySelectorAll('.answer').forEach(b=>b.disabled=true);
-      const correctBtn=[...document.querySelectorAll('.answer')].find(b=>b.textContent.toLowerCase()===pretty(current.name).toLowerCase());
-      if(correctBtn)correctBtn.classList.add('correct');
-      streak=0;
-      $('streakText').textContent=0;
-      $('feedback').textContent=`✗ Era ${pretty(current.name)} · Has usado las 5 pistas`;
-      $('next').classList.remove('hidden');
-    }else{
-      $('feedback').textContent=`✗ No es ese. Pista ${colorWrongCount}/5 desbloqueada`;
-    }
-    return;
-  }
   answered=true;
   document.querySelectorAll('.answer').forEach(b=>b.disabled=true);
   btn.classList.add(correct?'correct':'wrong');
@@ -936,10 +924,41 @@ function modeName(m){return {silhouette_normal:'Silueta Normal',silhouette_retro
 function board(){let b=document.getElementById('onlineBoard');if(!b){b=document.createElement('div');b.id='onlineBoard';b.className='online-vs-board';$('question').before(b)}b.innerHTML=`<div class="online-player"><strong>${escapeHtml(singlePlayerName||'Jugador')}</strong><div class="big">${vsScore}</div><small>puntos</small></div><div class="online-player"><strong>${escapeHtml(vsOppName)}</strong><div class="big">${vsOppScore}</div><small>puntos</small></div>`}
 async function renderQ(q){vsQuestion=q;vsAnswered=false;current=dex.find(p=>p.id===q.pokemonId);if(!current)return;$('roundText').textContent=`${q.round}/10`;$('streakText').textContent=vsScore;$('turnPill').classList.remove('hidden');$('turnPill').textContent='⚔️ '+modeName(q.mode);$('feedback').textContent='';
 let opts=(q.options||[]).map(id=>dex.find(p=>p.id===id)).filter(Boolean),html='';if(q.mode==='color'){let info=await colorInfo(current),hex=colorMap[info.color]||'#b8bec6';html=`<div class="prompt">🎨 COLOR · ¿Qué Pokémon tiene este color?</div><div class="online-swatch" style="background:${hex}"></div><div class="hint">Cada fallo desbloquea una pista.</div><div id="onlineHints" class="online-hints"></div>`}else if(q.mode==='pokedex'){await ensureSpecies(current);html=`<div class="prompt">📖 ¿Qué Pokémon es?</div><div class="desc">${descFor(current)}</div>`}else if(q.mode==='stats'){html=`<div class="prompt">📊 ¿Qué Pokémon tiene estas estadísticas?</div><div class="statgrid">${current.stats.map(s=>`<div class="stat"><small>${pretty(s.stat.name)}</small><b>${s.base_stat}</b></div>`).join('')}</div>`}else{html=`<div class="prompt">🌑 ¿Qué Pokémon es?</div><img class="online-sprite online-sil" src="${q.mode==='silhouette_retro'?gen5Sprite(current):normalSprite(current)}" alt="Silueta">`}
-$('question').innerHTML=html;$('answers').innerHTML=opts.map(p=>`<button class="answer" data-id="${p.id}">${pretty(p.name)}</button>`).join('');document.querySelectorAll('#answers .answer').forEach(b=>b.onclick=()=>answer(+b.dataset.id,b));if(q.mode==='color')updateHints(q.hints||0,q.shiny||false,current);board()}
+$('question').innerHTML=html;
+if(q.mode==='color'){
+  $('answers').innerHTML=`<div class="color-input-wrap"><input id="colorGuess" class="color-guess" type="text" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Escribe el nombre del Pokémon" aria-label="Nombre del Pokémon"><button id="colorGuessBtn" class="primary" type="button" onclick="submitOnlineColorGuess()">Comprobar</button></div>`;
+  $('colorGuess').addEventListener('keydown',e=>{if(e.key==='Enter')submitOnlineColorGuess()});
+  $('colorGuess').focus();
+}else{
+  $('answers').innerHTML=opts.map(p=>`<button class="answer" data-id="${p.id}">${pretty(p.name)}</button>`).join('');
+  document.querySelectorAll('#answers .answer').forEach(b=>b.onclick=()=>answer(+b.dataset.id,b));
+}
+if(q.mode==='color')updateHints(q.hints||0,q.shiny||false,current);board()}
 async function updateHints(n,shiny,p){if(!$('onlineHints'))return;await ensureSpecies(p);let sp=p.speciesData||{},loc='No disponible';try{let j=await (await fetch(`${API}/pokemon/${p.id}/encounters`)).json();loc=[...new Set(j.map(x=>x.location_area?.name).filter(Boolean).map(x=>pretty(x)))].slice(0,4).join(', ')||loc}catch(e){}let eggs=(sp.egg_groups||[]).map(x=>pretty(x.name)).join(', ')||'No disponible';let gen=pretty((sp.generation?.name||'').replace('generation-','Generación '));let h=[['Pista 1 · Tamaño',`${(p.height/10).toFixed(1)} m · ${(p.weight/10).toFixed(1)} kg`],['Pista 2 · Estadísticas',p.stats.map(x=>`${pretty(x.stat.name)} ${x.base_stat}`).join(' · ')],['Pista 3 · Localización',loc],['Pista 4 · Grupo huevo',shiny?'✨ Es un Pokémon shiny':eggs],['Pista 5 · Generación',gen]];$('onlineHints').innerHTML=h.map((x,i)=>`<div class="online-hint ${i<n?'':'locked'}"><strong>${x[0]}</strong>${i<n?x[1]:'🔒 Pista bloqueada'}</div>`).join('')}
+window.submitOnlineColorGuess=function(){
+  if(vsAnswered)return;
+  const input=$('colorGuess'),value=(input?.value||'').trim();
+  if(!value){$('feedback').textContent='Escribe el nombre de un Pokémon.';input?.focus();return}
+  const match=dex.find(p=>normalizePokemonName(p.name)===normalizePokemonName(value));
+  if(!match){$('feedback').textContent='No reconozco ese nombre de Pokémon. Prueba de nuevo.';input?.focus();return}
+  send({type:'answer',answerId:match.id});
+};
 function answer(id,btn){if(vsAnswered)return;vsAnswered=true;send({type:'answer',answerId:id});document.querySelectorAll('#answers .answer').forEach(b=>b.disabled=true);btn.classList.add(id===vsQuestion.correctId?'correct':'wrong');if(id!==vsQuestion.correctId)document.querySelector(`#answers .answer[data-id="${vsQuestion.correctId}"]`)?.classList.add('correct')}
-function handle(m){if(m.type==='private_created'){vsRoom=m.code;vsOnline=true;$('hostLobbyInfo').classList.remove('hidden');$('hostLobbyInfo').innerHTML=`Lobby creada · Código <strong>${m.code}</strong><br>Comparte código y contraseña.<br><span class="online-wait">Esperando Guest…</span>`}else if(m.type==='waiting')$('publicStatus').textContent=m.message||'Buscando rival…';else if(m.type==='match_ready'){vsRoom=m.room;vsOnline=true;vsOppName=m.opponentName||'Rival';vsScore=0;vsOppScore=0;$('setup').classList.add('hidden');$('home').classList.add('hidden');$('game').classList.remove('hidden');playRetroMusic()}else if(m.type==='round')renderQ(m);else if(m.type==='opponent_score'){vsOppScore=m.score;board()}else if(m.type==='hint'){if(vsQuestion)updateHints(m.hints,m.shiny,current);$('feedback').textContent=`Pista desbloqueada (${m.hints}/5)`}else if(m.type==='answer_result'){if(m.correct)vsScore+=m.points;$('feedback').textContent=m.correct?`✓ +${m.points} puntos`:`✗ No es ese`;board()}else if(m.type==='game_over'){vsScore=m.score;vsOppScore=m.opponentScore;board();$('game').classList.add('hidden');$('results').classList.remove('hidden');$('resultList').innerHTML=`<div class="online-result"><h3>${m.winner==='you'?'🏆 ¡Has ganado!':m.winner==='draw'?'🤝 Empate':'💥 Has perdido'}</h3><p>${escapeHtml(m.reason||'')}</p><p><strong>Tú:</strong> ${m.score} · <strong>Rival:</strong> ${m.opponentScore}</p></div>`}else if(m.type==='error')alert(m.message||'Error en Versus online.')}
+function handle(m){if(m.type==='private_created'){vsRoom=m.code;vsOnline=true;$('hostLobbyInfo').classList.remove('hidden');$('hostLobbyInfo').innerHTML=`Lobby creada · Código <strong>${m.code}</strong><br>Comparte código y contraseña.<br><span class="online-wait">Esperando Guest…</span>`}else if(m.type==='waiting')$('publicStatus').textContent=m.message||'Buscando rival…';else if(m.type==='match_ready'){vsRoom=m.room;vsOnline=true;vsOppName=m.opponentName||'Rival';vsScore=0;vsOppScore=0;$('setup').classList.add('hidden');$('home').classList.add('hidden');$('game').classList.remove('hidden');playRetroMusic()}else if(m.type==='round')renderQ(m);else if(m.type==='opponent_score'){vsOppScore=m.score;board()}else if(m.type==='hint'){if(vsQuestion)updateHints(m.hints,m.shiny,current);$('feedback').textContent=`Pista desbloqueada (${m.hints}/5)`}else if(m.type==='answer_result'){
+  if(m.correct){
+    vsScore+=m.points;
+    vsAnswered=true;
+    if($('colorGuess')){$('colorGuess').disabled=true;$('colorGuessBtn').disabled=true}
+    $('feedback').textContent=`✓ +${m.points} puntos`;
+  }else{
+    if(vsQuestion?.mode==='color'){
+      vsAnswered=false;
+      if($('colorGuess')){$('colorGuess').select();$('colorGuess').focus()}
+    }
+    $('feedback').textContent=vsQuestion?.mode==='color'?`✗ No es ese. Pista desbloqueada.`:`✗ No es ese`;
+  }
+  board()
+}else if(m.type==='game_over'){vsScore=m.score;vsOppScore=m.opponentScore;board();$('game').classList.add('hidden');$('results').classList.remove('hidden');$('resultList').innerHTML=`<div class="online-result"><h3>${m.winner==='you'?'🏆 ¡Has ganado!':m.winner==='draw'?'🤝 Empate':'💥 Has perdido'}</h3><p>${escapeHtml(m.reason||'')}</p><p><strong>Tú:</strong> ${m.score} · <strong>Rival:</strong> ${m.opponentScore}</p></div>`}else if(m.type==='error')alert(m.message||'Error en Versus online.')}
 const oldStart=window.start;window.start=function(m){if(m!=='versus')return oldStart(m);stopRetroMusic();stopMenuMusic();mode='versus';versus=true;singlePlayerName=($('playerName').value||'Jugador').trim().slice(0,18)||'Jugador';$('home').classList.add('hidden');$('setup').classList.remove('hidden');$('game').classList.add('hidden');$('results').classList.add('hidden');showVersusPanel('private');setVersusRole('')};
 })();
 </script></body>
