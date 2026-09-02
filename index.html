@@ -676,13 +676,18 @@ async function colorInfo(p){
     fetch(`${API}/pokemon/${p.id}/encounters`).then(r=>r.ok?r.json():[]).catch(()=>[])
   ]);
   const sp=p.speciesData||{};
-  const locations=[...new Set((encounterResult||[]).map(x=>x.location_area?.name).filter(Boolean).map(x=>pretty(x)))].slice(0,4);
+  const rawLocations=[...new Set((encounterResult||[]).map(x=>x.location_area?.name).filter(Boolean).map(x=>pretty(x)))];
+  const locations=summarizePokemonLocations(rawLocations);
+  const statPool=(p.stats||[]).slice();
+  let seed=(p.id*9301+49297)%233280;
+  for(let i=statPool.length-1;i>0;i--){seed=(seed*9301+49297)%233280;const j=Math.floor((seed/233280)*(i+1));[statPool[i],statPool[j]]=[statPool[j],statPool[i]];}
+  const selectedStats=statPool.slice(0,2).map(x=>`${pretty(x.stat.name)} ${x.base_stat}`);
   const info={
     color:sp.color?.name||'desconocido',
     height:`${(p.height/10).toFixed(1)} m`,
     weight:`${(p.weight/10).toFixed(1)} kg`,
-    stats:p.stats.map(x=>`${pretty(x.stat.name)} ${x.base_stat}`).join(' · '),
-    locations:locations.length?locations.join(', '):'No disponible',
+    stats:selectedStats.join(' · '),
+    locations,
     egg:(sp.egg_groups||[]).map(x=>pretty(x.name)).join(', ')||'No disponible',
     generation:pretty((sp.generation?.name||'').replace('generation-','Generación ')),
     isShiny:!!colorShiny
@@ -695,13 +700,37 @@ const colorMap={
   green:'#4caf50', pink:'#ec7aa8', purple:'#8b5cf6', red:'#ef4444',
   white:'#f5f5f5', yellow:'#f2c94c'
 };
+function summarizePokemonLocations(names){
+  if(!names.length)return 'No disponible';
+  const text=names.join(' ').toLowerCase();
+  const categories=[];
+  const groups=[
+    ['mar',/sea|ocean|coast|bay|harbor|harbour|beach|marine|undersea|underwater|mar|océano|costa|playa|bahía/],
+    ['lago',/lake|reservoir|pond|lago|laguna/],
+    ['bosque',/forest|woods|woodland|grove|bosque/],
+    ['cueva',/cave|cavern|tunnel|cave entrance|cueva|túnel/],
+    ['montaña',/mountain|mt\.|mount|peak|cliff|montaña|acantilado/],
+    ['río',/river|stream|waterfall|río|cascada/],
+    ['desierto',/desert|desierto/],
+    ['pantano',/marsh|swamp|wetland|pantano/],
+    ['ciudad',/city|town|village|city outskirts|ciudad|pueblo/],
+    ['ruinas',/ruins|ruin|temple|shrine|ruinas|templo/],
+    ['ruta',/route|path|trail|road|ruta|camino/]
+  ];
+  for(const [label,re] of groups)if(re.test(text))categories.push(label);
+  if(!categories.length){
+    if(names.length>=4)return 'Varias zonas de naturaleza y rutas';
+    return 'Zona natural o exterior';
+  }
+  return categories.slice(0,3).join(', ');
+}
 function colorHintMarkup(info){
   const hints=[
-    ['Pista 1 · Tamaño',`${info.height} · ${info.weight}`],
+    ['Pista 1 · Generación',info.generation],
     ['Pista 2 · Estadísticas',info.stats],
     ['Pista 3 · Localización',info.locations],
     ['Pista 4 · Grupo huevo',info.isShiny?'✨ Es un Pokémon shiny':info.egg],
-    ['Pista 5 · Generación',info.generation]
+    ['Pista 5 · Tamaño',`${info.height} · ${info.weight}`]
   ];
   return `<div class="color-hints">${hints.map((h,i)=>`<div class="color-hint ${i<colorWrongCount?'active':''}"><strong>${h[0]}</strong>${i<colorWrongCount?h[1]:'🔒 Pista bloqueada'}</div>`).join('')}</div>`;
 }
@@ -1054,7 +1083,7 @@ if(q.mode==='color'){
   document.querySelectorAll('#answers .answer').forEach(b=>b.onclick=()=>answer(+b.dataset.id,b));
 }
 if(q.mode==='color')updateHints(q.hints||0,q.shiny||false,current);board()}
-async function updateHints(n,shiny,p){if(!$('onlineHints'))return;await ensureSpecies(p);let sp=p.speciesData||{},loc='No disponible';try{let j=await (await fetch(`${API}/pokemon/${p.id}/encounters`)).json();loc=[...new Set(j.map(x=>x.location_area?.name).filter(Boolean).map(x=>pretty(x)))].slice(0,4).join(', ')||loc}catch(e){}let eggs=(sp.egg_groups||[]).map(x=>pretty(x.name)).join(', ')||'No disponible';let gen=pretty((sp.generation?.name||'').replace('generation-','Generación '));let h=[['Pista 1 · Tamaño',`${(p.height/10).toFixed(1)} m · ${(p.weight/10).toFixed(1)} kg`],['Pista 2 · Estadísticas',p.stats.map(x=>`${pretty(x.stat.name)} ${x.base_stat}`).join(' · ')],['Pista 3 · Localización',loc],['Pista 4 · Grupo huevo',shiny?'✨ Es un Pokémon shiny':eggs],['Pista 5 · Generación',gen]];$('onlineHints').innerHTML=h.map((x,i)=>`<div class="online-hint ${i<n?'':'locked'}"><strong>${x[0]}</strong>${i<n?x[1]:'🔒 Pista bloqueada'}</div>`).join('')}
+async function updateHints(n,shiny,p){if(!$('onlineHints'))return;const info=await colorInfo(p);const h=[['Pista 1 · Generación',info.generation],['Pista 2 · Estadísticas',info.stats],['Pista 3 · Localización',info.locations],['Pista 4 · Grupo huevo',shiny?'✨ Es un Pokémon shiny':info.egg],['Pista 5 · Tamaño',`${info.height} · ${info.weight}`]];$('onlineHints').innerHTML=h.map((x,i)=>`<div class="online-hint ${i<n?'':'locked'}"><strong>${x[0]}</strong>${i<n?x[1]:'🔒 Pista bloqueada'}</div>`).join('')}
 window.submitOnlineColorGuess=async function(){
   if(vsAnswered)return;
   const input=$('colorGuess'),value=(input?.value||'').trim();
