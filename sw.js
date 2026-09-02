@@ -1,5 +1,5 @@
-const CACHE_NAME = 'pokemon-quiz-pwa-v10-sil-reveal';
-const CORE = ['./', './index.html', './manifest.webmanifest', './versus-config.js', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+const CACHE_NAME = 'pokemon-quiz-pwa-v14-final-polish';
+const CORE = ['./', './index.html', './manifest.webmanifest', './versus-config.js', './firebase-config.js', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 const API_ORIGINS = [
   'https://pokeapi.co/',
   'https://raw.githubusercontent.com/',
