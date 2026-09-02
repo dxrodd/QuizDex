@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Pokémon Quiz">
 <link rel="manifest" href="./manifest.webmanifest">
+<link rel="preconnect" href="https://pokeapi.co" crossorigin>
+<link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <title>Pokémon 1025 — Quiz</title>
 <style>
@@ -42,6 +44,11 @@ button.mode:hover,button.answer:hover,button.primary:hover,button.secondary:hove
 button.answer.correct{background:linear-gradient(to bottom,#e53935 0 49%,#b7f0bd 49% 100%) !important}
 button.answer.wrong{background:linear-gradient(to bottom,#b71c1c 0 49%,#eee 49% 100%) !important}
 button:disabled{opacity:.82}
+
+/* COLOR: respuesta escrita en blanco sobre negro */
+.color-guess{background:#000 !important;color:#fff !important;border:2px solid #555 !important;caret-color:#fff !important;}
+.color-guess::placeholder{color:#fff !important;opacity:.8 !important;}
+.color-guess:focus{background:#000 !important;color:#fff !important;}
 </style>
 
 <style id="pokelike-ui">
@@ -468,7 +475,7 @@ button.answer.wrong:hover{
 .color-hints{width:min(760px,100%);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:16px auto 4px}
 .color-hint{background:#f4f6f8;border:1px solid #c5ced8;border-radius:10px;padding:10px;text-align:left;color:#18212b}
 .color-hint strong{display:block;font-size:12px;color:#536170;margin-bottom:3px}
-.color-hint.active{border-color:#8b5cf6;box-shadow:0 0 0 2px rgba(139,92,246,.12)}.color-input-wrap{display:flex;gap:10px;width:min(680px,100%);margin:16px auto 0;align-items:stretch}.color-guess{flex:1;min-width:0;background:#fff;color:#18212b;border:2px solid #c4ccd5;border-radius:10px;padding:12px 14px;font-size:17px}.color-guess:focus{outline:3px solid rgba(139,92,246,.2);border-color:#8b5cf6}@media(max-width:520px){.color-input-wrap{flex-direction:column}.color-input-wrap button{width:100%}}
+.color-hint.active{border-color:#8b5cf6;box-shadow:0 0 0 2px rgba(139,92,246,.12)}.color-input-wrap{display:flex;gap:10px;width:min(680px,100%);margin:16px auto 0;align-items:stretch}.color-guess{flex:1;min-width:0;background:#000;color:#fff;border:2px solid #c4ccd5;border-radius:10px;padding:12px 14px;font-size:17px}.color-guess:focus{outline:3px solid rgba(139,92,246,.2);border-color:#8b5cf6;background:#000;color:#fff}.color-guess::placeholder{color:#fff;opacity:.7}@media(max-width:520px){.color-input-wrap{flex-direction:column}.color-input-wrap button{width:100%}}
 @media(max-width:700px){.color-hints{grid-template-columns:1fr}.color-hint{padding:9px}.color-swatch{width:min(210px,58vw);height:min(210px,58vw)}}
 
 .versus-tabs{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}.versus-role-grid{display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:12px;margin:14px 0}.mini-mode{min-height:100px;text-align:left}.versus-panel{padding:16px 0}.versus-form{margin-top:14px;padding:16px;background:#f5f7fa;border:1px solid #c5ced8;border-radius:12px}.lobby-info{margin-top:12px;padding:12px;border:1px solid #9da9b5;border-radius:10px;background:#eef2f6;font-weight:800}.online-vs-board{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}.online-player{padding:10px;border:1px solid #c5ced8;border-radius:10px;background:#f7f9fb}.online-player .big{font-size:24px}.online-result{margin-top:15px;padding:15px;border-radius:12px;background:#eef2f6;border:1px solid #c5ced8}.online-swatch{width:min(260px,70vw);height:min(260px,70vw);border-radius:20px;border:3px solid #b5c0cb;box-shadow:0 8px 20px rgba(20,32,45,.14);margin:18px auto}.online-sprite{width:220px;height:220px;object-fit:contain}.online-sil{filter:brightness(0) saturate(0) contrast(1.35) drop-shadow(0 18px 20px rgba(0,0,0,.35))}.online-hints{width:min(720px,100%);display:grid;gap:8px;margin-top:14px}.online-hint{padding:9px 12px;border-radius:8px;background:#eef2f6;border:1px solid #c5ced8;text-align:left}.online-hint strong{display:block}.online-hint.locked{opacity:.55}.online-wait{padding:20px;text-align:center;font-weight:900}@media(max-width:700px){.versus-role-grid,.online-vs-board{grid-template-columns:1fr}.versus-form .row{flex-direction:column;align-items:stretch}.online-sprite{width:180px;height:180px}}
@@ -588,7 +595,7 @@ async function fetchPokemonDetail(p){
 
 function preloadPokemonDetails(list){
   const unique=[...new Set(list.map(p=>p.id))].filter(id=>!pokemonDetailCache.has(id));
-  unique.slice(0,6).forEach(id=>{
+  unique.slice(0,2).forEach(id=>{
     const p=dex.find(x=>x.id===id);
     if(p) fetchPokemonDetail(p).catch(()=>{});
   });
@@ -663,14 +670,13 @@ async function ensureSpecies(p){if(p.speciesData)return;p.speciesData=await (awa
 const colorCache=new Map();
 async function colorInfo(p){
   if(colorCache.has(p.id)) return colorCache.get(p.id);
-  await ensureSpecies(p);
+  // Las dos peticiones son independientes: se realizan en paralelo.
+  const [, encounterResult]=await Promise.all([
+    ensureSpecies(p),
+    fetch(`${API}/pokemon/${p.id}/encounters`).then(r=>r.ok?r.json():[]).catch(()=>[])
+  ]);
   const sp=p.speciesData||{};
-  let locations=[];
-  try{
-    const r=await fetch(`${API}/pokemon/${p.id}/encounters`);
-    const j=await r.json();
-    locations=[...new Set(j.map(x=>x.location_area?.name).filter(Boolean).map(x=>pretty(x)))].slice(0,4);
-  }catch(e){}
+  const locations=[...new Set((encounterResult||[]).map(x=>x.location_area?.name).filter(Boolean).map(x=>pretty(x)))].slice(0,4);
   const info={
     color:sp.color?.name||'desconocido',
     height:`${(p.height/10).toFixed(1)} m`,
@@ -683,6 +689,7 @@ async function colorInfo(p){
   };
   colorCache.set(p.id,info); return info;
 }
+
 const colorMap={
   black:'#1f2328', blue:'#3b82f6', brown:'#9a6b3f', gray:'#8b929a',
   green:'#4caf50', pink:'#ec7aa8', purple:'#8b5cf6', red:'#ef4444',
@@ -698,37 +705,102 @@ function colorHintMarkup(info){
   ];
   return `<div class="color-hints">${hints.map((h,i)=>`<div class="color-hint ${i<colorWrongCount?'active':''}"><strong>${h[0]}</strong>${i<colorWrongCount?h[1]:'🔒 Pista bloqueada'}</div>`).join('')}</div>`;
 }
-async function normalizePokemonName(s){return String(s||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/♀/g,'f').replace(/♂/g,'m').replace(/[^a-z0-9]/g,'')} 
-function submitColorGuess(){if(answered)return;const input=$('colorGuess'),value=(input?.value||'').trim();if(!value){$('feedback').textContent='Escribe el nombre de un Pokémon.';input?.focus();return}const correct=normalizePokemonName(value)===normalizePokemonName(current.name);if(correct){answered=true;input.disabled=true;$('colorGuessBtn').disabled=true;streak++;const pts=100+(infinite?0:(maxRounds-round)*10);score+=pts;$('streakText').textContent=streak;$('feedback').textContent=`✓ ¡Correcto! +${pts} puntos`;$('next').classList.remove('hidden')}else{colorWrongCount=Math.min(5,colorWrongCount+1);const info=colorCache.get(current.id);const hints=document.querySelector('.color-hints');if(hints&&info)hints.outerHTML=colorHintMarkup(info);input.select();if(colorWrongCount>=5){answered=true;input.disabled=true;$('colorGuessBtn').disabled=true;streak=0;$('streakText').textContent=0;$('feedback').textContent=`✗ Era ${pretty(current.name)} · Has usado las 5 pistas`;$('next').classList.remove('hidden')}else{$('feedback').textContent=`✗ No es ese. Pista ${colorWrongCount}/5 desbloqueada`;input.focus()}}}
+function normalizePokemonName(s){
+  return String(s||'')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .replace(/♀/g,'f').replace(/♂/g,'m')
+    .replace(/[^a-z0-9]/g,'');
+}
+function colorGuessMatches(value,pokemon){
+  const wanted=normalizePokemonName(value);
+  if(!wanted || !pokemon)return false;
+  const candidates=[pokemon.name, pretty(pokemon.name)];
+  const names=pokemon.speciesData?.names||[];
+  for(const n of names){
+    if(n?.name && (n.language?.name==='es' || n.language?.name==='en')) candidates.push(n.name);
+  }
+  return candidates.some(name=>normalizePokemonName(name)===wanted);
+}
+async function submitColorGuess(){
+  if(answered)return;
+  const input=$('colorGuess'), button=$('colorGuessBtn');
+  const value=(input?.value||'').trim();
+  if(!value){$('feedback').textContent='Escribe el nombre de un Pokémon.';input?.focus();return;}
+  // Aseguramos que tenemos el Pokémon completo antes de comprobarlo.
+  if(current && !(current.name && current.id)) current=await fetchPokemonDetail(current);
+  const correct=colorGuessMatches(value,current);
+  if(correct){
+    answered=true;
+    if(input)input.disabled=true;
+    if(button)button.disabled=true;
+    streak++;
+    const pts=100+(infinite?0:(maxRounds-round)*10);
+    score+=pts;
+    $('streakText').textContent=streak;
+    $('feedback').textContent=`✓ ¡Correcto! +${pts} puntos`;
+    $('next').classList.remove('hidden');
+  }else{
+    colorWrongCount=Math.min(5,colorWrongCount+1);
+    const info=colorCache.get(current.id);
+    const hints=document.querySelector('.color-hints');
+    if(hints&&info)hints.outerHTML=colorHintMarkup(info);
+    if(input)input.select();
+    if(colorWrongCount>=5){
+      answered=true;
+      if(input)input.disabled=true;
+      if(button)button.disabled=true;
+      streak=0;
+      $('streakText').textContent=0;
+      $('feedback').textContent=`✗ Era ${pretty(current.name)} · Has usado las 5 pistas`;
+      $('next').classList.remove('hidden');
+    }else{
+      $('feedback').textContent=`✗ No es ese. Pista ${colorWrongCount}/5 desbloqueada`;
+      input?.focus();
+    }
+  }
+}
 async function nextRound(){
   if(!infinite && round>=maxRounds){finish();return}
   answered=false;$('next').classList.add('hidden');$('feedback').textContent='';round++;
   $('roundText').textContent=infinite?`${round}/∞`:`${round}/${maxRounds}`;$('streakText').textContent=versus?players[currentPlayer].streak:streak;
   if(versus){$('turnPill').classList.remove('hidden');$('turnPill').textContent='Turno: '+players[currentPlayer].name}
-  current=pick();let opts=choices(current);let q='';
-  // Solo necesitamos los detalles de los Pokémon que aparecen en esta ronda.
-  // Esto evita descargar los 1025 registros al iniciar la página.
-  if(mode==='color'){
+  current=pick();
+
+  // Determinamos el tipo de pregunta antes de descargar datos.
+  // Así cada modo pide únicamente lo que realmente necesita.
+  currentQuestionMode=mode;
+  if(mode==='mix') currentQuestionMode=['silhouette','pokedex','stats'][Math.floor(Math.random()*3)];
+
+  let opts=[];
+  if(currentQuestionMode==='silhouette' || mode==='color'){
+    // Solo hace falta el Pokémon correcto.
     current=await fetchPokemonDetail(current);
   }else{
-    const needed=opts;
-    const details=await Promise.all(needed.map(fetchPokemonDetail));
+    // Descripción, estadísticas y modos de respuesta múltiple necesitan opciones.
+    opts=choices(current);
+    const details=await Promise.all(opts.map(fetchPokemonDetail));
     current=details[details.findIndex(p=>p.id===current.id)]||details[0];
     opts=details;
   }
-  // Adelantamos algunos datos en segundo plano para la siguiente ronda.
-  preloadPokemonDetails(dex.filter(p=>!usedIds.has(p.id)).sort(()=>Math.random()-.5));
-  currentQuestionMode=mode;
-  if(mode==='mix') currentQuestionMode=['silhouette','pokedex','stats'][Math.floor(Math.random()*3)];
+
+  // Preparamos solo 2 Pokémon de la siguiente ronda, sin bloquear la interfaz.
+  preloadPokemonDetails(dex.filter(p=>!usedIds.has(p.id)).slice(0,2));
+
+  let q='';
   if(mode==='color'){
     colorWrongCount=0;
     colorShiny=Math.random()<0.15;
     const info=await colorInfo(current);
     const hex=colorMap[info.color]||'#b8bec6';
     q=`<div class="prompt">🎨 COLOR · ¿Qué Pokémon tiene este color?</div><div class="color-swatch" style="background:${hex}" aria-label="Color Pokémon"></div><div class="hint">Cada fallo desbloquea una pista, hasta 5.</div>${colorHintMarkup(info)}`;
-  } else if(currentQuestionMode==='pokedex'){await ensureSpecies(current);q=`<div class="prompt">🎲 MIX · ¿Qué Pokémon es? · Descripción</div><div class="desc">${descFor(current)}</div>`}
-  else if(currentQuestionMode==='stats'){q=`<div class="prompt">🎲 MIX · ¿Qué Pokémon tiene estas estadísticas?</div><div class="statgrid">${current.stats.map(s=>`<div class="stat"><small>${pretty(s.stat.name)}</small><b>${s.base_stat}</b></div>`).join('')}</div>`}
-  else {
+  } else if(currentQuestionMode==='pokedex'){
+    await ensureSpecies(current);
+    q=`<div class="prompt">🎲 MIX · ¿Qué Pokémon es? · Descripción</div><div class="desc">${descFor(current)}</div>`;
+  } else if(currentQuestionMode==='stats'){
+    q=`<div class="prompt">🎲 MIX · ¿Qué Pokémon tiene estas estadísticas?</div><div class="statgrid">${current.stats.map(s=>`<div class="stat"><small>${pretty(s.stat.name)}</small><b>${s.base_stat}</b></div>`).join('')}</div>`;
+  } else {
     const retro=mode==='silhouette_retro';
     const sprite=retro?gen5Sprite(current):normalSprite(current);
     q=`<div class="prompt">${mode==='mix'?'🎲 MIX · ':''}¿Quién es este Pokémon?</div><img class="sprite silhouette sil-${difficulty}" src="${sprite}" alt="${retro?'Silueta retro Gen 5':'Silueta normal'}">`;
@@ -919,32 +991,32 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 
 <script id="final-retro-background-js">
-document.addEventListener("DOMContentLoaded",()=>{
-  if(document.querySelector(".pokelike-bg")) return;
-  const bg=document.createElement("div");
-  bg.className="pokelike-bg";
-  bg.setAttribute("aria-hidden","true");
-
-  // Una selección deliberadamente variada de sprites animados clásicos.
-  const ids=[
-    1,3,4,6,7,9,12,18,19,25,26,35,39,52,54,58,59,63,65,66,
-    74,77,78,81,82,88,94,95,104,105,109,113,120,121,125,126,
-    129,130,133,134,135,136,137,143,147,148,149,150
-  ];
-
-  ids.forEach((id,i)=>{
-    const img=document.createElement("img");
-    img.className="retro-sprite";
-    img.src=`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/${id}.gif`;
-    img.alt="";
-    img.style.top=(2+((i*17)%94))+"%";
-    img.style.setProperty("--dur",(30+(i%9)*5)+"s");
-    img.style.setProperty("--scale",(0.72+(i%5)*0.10).toFixed(2));
-    img.style.animationDelay=(-i*3.1)+"s";
-    img.onerror=()=>img.remove();
-    bg.appendChild(img);
-  });
-  document.body.prepend(bg);
+window.addEventListener("load",()=>{
+  const build=()=>{
+    if(document.querySelector(".pokelike-bg")) return;
+    const bg=document.createElement("div");
+    bg.className="pokelike-bg";
+    bg.setAttribute("aria-hidden","true");
+    // Fondo decorativo ligero: se carga después de la interfaz para no bloquear el arranque.
+    const ids=[1,3,6,9,25,39,54,65,94,130,149,150];
+    ids.forEach((id,i)=>{
+      const img=document.createElement("img");
+      img.className="retro-sprite";
+      img.loading="lazy";
+      img.decoding="async";
+      img.src=`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/${id}.gif`;
+      img.alt="";
+      img.style.top=(4+((i*23)%90))+"%";
+      img.style.setProperty("--dur",(34+(i%7)*5)+"s");
+      img.style.setProperty("--scale",(0.72+(i%5)*0.10).toFixed(2));
+      img.style.animationDelay=(-i*3.1)+"s";
+      img.onerror=()=>img.remove();
+      bg.appendChild(img);
+    });
+    document.body.prepend(bg);
+  };
+  if("requestIdleCallback" in window) requestIdleCallback(build,{timeout:2500});
+  else setTimeout(build,1200);
 });
 </script>
 
