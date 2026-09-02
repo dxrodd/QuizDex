@@ -532,7 +532,9 @@ button.answer.wrong:hover{
 .dev-social a{display:inline-flex;align-items:center;gap:4px;color:#18212b;text-decoration:none}
 .dev-social a:hover{text-decoration:underline}
 .dev-social svg{width:17px;height:17px;display:block;flex:none}.dev-social .ig{color:#d62976}.dev-social .tw{color:#111820}
-@media(max-width:700px){.dev-contact{right:8px!important;bottom:8px!important;padding:7px 8px!important;font-size:10px!important}.dev-contact strong{font-size:9px!important}.dev-social{gap:7px}.dev-social svg{width:15px;height:15px}}
+/* Botón de regreso: solo visible dentro de una partida */
+#gameHomeBtn{margin-left:auto!important;white-space:nowrap!important}
+@media(max-width:700px){.dev-contact{right:8px!important;bottom:8px!important;padding:7px 8px!important;font-size:10px!important}.dev-contact strong{font-size:9px!important}.dev-social{gap:7px}.dev-social svg{width:15px;height:15px}/* En móvil, redes solo en el menú principal */body:has(#home:not(.hidden)) #devContact{display:flex!important}body:has(#home.hidden) #devContact{display:none!important}}
 </style>
 <style id="results-all-modes">
 /* Resultados unificados para TODOS los modos */
@@ -618,6 +620,7 @@ button.answer.wrong:hover{
   <div class="row between">
     <div><span class="pill">Ronda <strong id="roundText"></strong></span> <span class="pill">Racha <strong id="streakText">0</strong></span><span id="mixPill" class="pill hidden">🎲 MIX · INFINITO</span><span id="mixTimer" class="timer-inline hidden"><span class="timer-mini" id="mixTimerClock"></span><span id="mixTimerSeconds">40</span>s</span></div>
     <div id="turnPill" class="pill hidden"></div>
+    <button id="gameHomeBtn" class="secondary" type="button" onclick="if(versus) leaveVersusOnline(); goHome()">↩️ Volver al menú principal</button>
   </div>
   <div id="question"></div>
   <div id="answers" class="answers"></div>
@@ -698,6 +701,8 @@ function playAgain(){
 }
 function goHome(){
   stopRetroMusic();
+  stopMixTimer();
+  if(typeof stopOnlineTimer==='function') stopOnlineTimer();
   ['setup','game','results'].forEach(x=>$(x).classList.add('hidden'));
   $('home').classList.remove('hidden');
   renderLeaderboard();
