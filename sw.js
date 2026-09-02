@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pokemon-quiz-pwa-v14-final-polish';
+const CACHE_NAME = 'quizdex-v-final-results-all-modes';
 const CORE = ['./', './index.html', './manifest.webmanifest', './versus-config.js', './firebase-config.js', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 const API_ORIGINS = [
   'https://pokeapi.co/',

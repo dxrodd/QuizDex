@@ -507,7 +507,41 @@ button.answer.wrong:hover{
 @media(max-width:650px){.account-panel{align-items:stretch}.account-panel button{margin-left:0;width:100%}.stat{grid-template-columns:92px 1fr 46px;gap:7px;font-size:13px}.stat b{font-size:16px}}
 @keyframes revealPop{from{opacity:.15;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
 </style>
-</head>
+
+<style id="timer-results-social-overrides">
+/* Temporizador circular animado */
+.round-timer{display:flex;align-items:center;gap:10px;min-width:100px;justify-content:center;padding:6px 10px;background:#101e32;border:1px solid #46617f;border-radius:999px;color:#fff;font-weight:900;box-shadow:inset 0 1px #ffffff0b}
+.timer-clock{--progress:1;position:relative;width:32px;height:32px;border-radius:50%;background:conic-gradient(#62d6ff calc(var(--progress)*360deg),#33445a 0);display:grid;place-items:center;transition:background .2s linear}
+.timer-clock::before{content:"";width:24px;height:24px;border-radius:50%;background:#101e32;border:1px solid #5d7898;box-shadow:inset 0 0 0 2px #101e32}
+.timer-hand{position:absolute;width:2px;height:9px;background:#fff;border-radius:2px;top:7px;left:15px;transform-origin:50% 9px;transform:rotate(calc((1 - var(--progress))*360deg));z-index:2;transition:transform .2s linear}
+.timer-seconds{min-width:24px;text-align:left}
+.timer-clock.warn{animation:timerBlink .65s steps(2,end) infinite;background:conic-gradient(#ff5f67 calc(var(--progress)*360deg),#4a3038 0)}
+@keyframes timerBlink{50%{opacity:.45;transform:scale(.96)}}
+.timer-inline{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:#101e32;border:1px solid #46617f;color:#fff;font-weight:900}
+.timer-mini{width:18px;height:18px;border-radius:50%;display:inline-block;background:conic-gradient(#62d6ff 360deg,#33445a 0);border:2px solid #a6e9ff}
+.timer-inline.warn .timer-mini{animation:timerBlink .65s steps(2,end) infinite;background:conic-gradient(#ff5f67 360deg,#4a3038 0)}
+/* Resultados: texto blanco sobre fondo negro */
+#results .result,#results .online-result{background:#000!important;color:#fff!important;border:2px solid #333!important;box-shadow:0 8px 18px rgba(0,0,0,.25)!important}
+#results .result .hint,#results .online-result .hint{color:#fff!important;opacity:.82}
+#results .result .big{color:#fff!important;text-shadow:2px 2px #333!important}
+/* Redes sociales abajo a la derecha */
+#devContact{display:flex!important}
+.dev-contact{position:fixed!important;right:16px!important;bottom:14px!important;z-index:100;display:flex!important;flex-direction:column;align-items:flex-end;gap:6px;padding:9px 11px;background:rgba(255,255,255,.96)!important;border:1px solid #c5ced8!important;border-radius:10px!important;box-shadow:0 5px 16px rgba(20,32,45,.18)!important;font-size:12px!important;line-height:1.15;color:#18212b!important}
+.dev-contact strong{font-size:10px!important;text-transform:uppercase;letter-spacing:.04em;color:#536170!important}
+.dev-social{display:flex;align-items:center;gap:10px;white-space:nowrap;font-weight:800}
+.dev-social a{display:inline-flex;align-items:center;gap:4px;color:#18212b;text-decoration:none}
+.dev-social a:hover{text-decoration:underline}
+.dev-social svg{width:17px;height:17px;display:block;flex:none}.dev-social .ig{color:#d62976}.dev-social .tw{color:#111820}
+@media(max-width:700px){.dev-contact{right:8px!important;bottom:8px!important;padding:7px 8px!important;font-size:10px!important}.dev-contact strong{font-size:9px!important}.dev-social{gap:7px}.dev-social svg{width:15px;height:15px}}
+</style>
+<style id="results-all-modes">
+/* Resultados unificados para TODOS los modos */
+#results{background:#000!important;color:#fff!important;border-color:#333!important;}
+#results h2,#results h3,#results p,#results .hint,#results .big,#results .result,#results .result *{color:#fff!important;}
+#results .result{background:#000!important;color:#fff!important;border:2px solid #333!important;box-shadow:0 8px 18px rgba(0,0,0,.25)!important;}
+#results .primary,#results .secondary{color:#fff!important;background:#000!important;border:2px solid #555!important;}
+#results .primary:hover,#results .secondary:hover{background:#1a1a1a!important;}
+</style></head>
 <body>
 <div class="app">
 <header class="top"><div class="brand">Pokémon <span>1025</span> Quiz</div><div id="status" class="pill">Cargando Pokédex…</div></header>
@@ -535,10 +569,16 @@ button.answer.wrong:hover{
     <div id="leaderboard"></div>
   </div>
 </section>
-<div id="devContact" class="dev-contact" aria-label="Información de desarrollo">
-<strong>In Development · pide opciones, modos o más cosas</strong>
-<div class="dev-social"><svg class="ig" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg><span>@diego_dzd</span></div>
-<div class="dev-social"><svg class="tw" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M18.9 2H22l-6.77 7.74L23.2 22h-6.24l-4.89-6.72L6.19 22H3.08l7.24-8.28L2.8 2h6.4l4.42 6.03L18.9 2Zm-1.1 17.9h1.73L8.31 4.03H6.45L17.8 19.9Z"/></svg><span>@xdrodd</span></div>
+<div id="devContact" class="dev-contact" aria-label="Redes sociales de desarrollo">
+  <strong>QuizDex · Desarrollo</strong>
+  <div class="dev-social">
+    <a href="https://www.instagram.com/dxrodd_/" target="_blank" rel="noopener noreferrer" aria-label="Instagram de dxrodd_">
+      <svg class="ig" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg><span>@dxrodd_</span>
+    </a>
+    <a href="https://x.com/xdrodd" target="_blank" rel="noopener noreferrer" aria-label="X de xdrodd">
+      <svg class="tw" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M18.9 2H22l-6.77 7.74L23.2 22h-6.24l-4.89-6.72L6.19 22H3.08l7.24-8.28L2.8 2h6.4l4.42 6.03L18.9 2Zm-1.1 17.9h1.73L8.31 4.03H6.45L17.8 19.9Z"/></svg><span>@xdrodd</span>
+    </a>
+  </div>
 </div>
 <section id="setup" class="card hidden">
   <h2>⚔️ Versus online</h2>
@@ -574,9 +614,9 @@ button.answer.wrong:hover{
 </section>
 
 <section id="game" class="card hidden">
-  <div id="roundTimer" class="pill round-timer hidden" aria-live="polite"></div>
+  <div id="roundTimer" class="round-timer hidden" aria-live="polite"><div class="timer-clock" id="onlineTimerClock"><div class="timer-hand"></div></div><span class="timer-seconds" id="onlineTimerSeconds">40</span></div>
   <div class="row between">
-    <div><span class="pill">Ronda <strong id="roundText"></strong></span> <span class="pill">Racha <strong id="streakText">0</strong></span><span id="mixPill" class="pill hidden">🎲 MIX · INFINITO</span><span id="mixTimer" class="pill hidden">⏱️ 40s</span></div>
+    <div><span class="pill">Ronda <strong id="roundText"></strong></span> <span class="pill">Racha <strong id="streakText">0</strong></span><span id="mixPill" class="pill hidden">🎲 MIX · INFINITO</span><span id="mixTimer" class="timer-inline hidden"><span class="timer-mini" id="mixTimerClock"></span><span id="mixTimerSeconds">40</span>s</span></div>
     <div id="turnPill" class="pill hidden"></div>
   </div>
   <div id="question"></div>
@@ -840,16 +880,25 @@ async function submitColorGuess(){
     }
   }
 }
-function stopMixTimer(){if(mixTimerId){clearInterval(mixTimerId);mixTimerId=null;} mixTimedOut=false; $('mixTimer')?.classList.add('hidden');}
+function setTimerVisual(clock,seconds,left){
+  if(!clock)return;
+  const progress=Math.max(0,left/40);
+  clock.style.setProperty('--progress',progress.toFixed(3));
+  const warn=left<=10;
+  clock.classList.toggle('warn',warn);
+  if(seconds)seconds.textContent=left;
+}
+function stopMixTimer(){if(mixTimerId){clearInterval(mixTimerId);mixTimerId=null;} mixTimedOut=false; const pill=$('mixTimer'); pill?.classList.add('hidden'); const c=$('mixTimerClock'); c?.classList.remove('warn');}
 function startMixTimer(){
   stopMixTimer();
   if(mode!=='mix' || versus) return;
   mixTimeLeft=40; mixTimedOut=false;
-  const pill=$('mixTimer'); if(pill){pill.classList.remove('hidden');pill.textContent='⏱️ 40s';}
+  const pill=$('mixTimer'); if(pill){pill.classList.remove('hidden');}
+  setTimerVisual($('mixTimerClock'),$('mixTimerSeconds'),40);
   mixTimerId=setInterval(()=>{
     if(answered){stopMixTimer();return;}
     mixTimeLeft--;
-    if(pill){pill.textContent=`⏱️ ${mixTimeLeft}s`;}
+    setTimerVisual($('mixTimerClock'),$('mixTimerSeconds'),mixTimeLeft);
     if(mixTimeLeft<=0){
       stopMixTimer();
       const buttons=[...document.querySelectorAll('#answers .answer')];
@@ -1149,7 +1198,7 @@ const ONLINE_SERVER = window.VERSUS_SERVER_URL ||
   (window.POKEMON_QUIZ_CONFIG && window.POKEMON_QUIZ_CONFIG.versusServer) ||
   ((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
 let vsSocket=null,vsRoom='',vsOnline=false,vsScore=0,vsOppScore=0,vsOppName='Rival',vsQuestion=null,vsAnswered=false,vsColorWrongCount=0;
-let onlineTimerId=null,onlineTimeLeft=40;function stopOnlineTimer(){if(onlineTimerId){clearInterval(onlineTimerId);onlineTimerId=null}const el=$('roundTimer');if(el){el.classList.add('hidden');el.classList.remove('warn')}}function startOnlineTimer(){stopOnlineTimer();onlineTimeLeft=40;const el=$('roundTimer');if(!el)return;el.classList.remove('hidden');el.textContent='⏱️ 40s';onlineTimerId=setInterval(()=>{onlineTimeLeft--;el.textContent=`⏱️ ${onlineTimeLeft}s`;if(onlineTimeLeft<=10)el.classList.add('warn');if(onlineTimeLeft<=0){stopOnlineTimer();$('feedback').textContent='⏱️ Tiempo agotado…';}},1000)}
+let onlineTimerId=null,onlineTimeLeft=40;function stopOnlineTimer(){if(onlineTimerId){clearInterval(onlineTimerId);onlineTimerId=null}const el=$('roundTimer');if(el){el.classList.add('hidden')}const c=$('onlineTimerClock');c?.classList.remove('warn')}function startOnlineTimer(){stopOnlineTimer();onlineTimeLeft=40;const el=$('roundTimer');if(!el)return;el.classList.remove('hidden');setTimerVisual($('onlineTimerClock'),$('onlineTimerSeconds'),40);onlineTimerId=setInterval(()=>{onlineTimeLeft--;setTimerVisual($('onlineTimerClock'),$('onlineTimerSeconds'),onlineTimeLeft);if(onlineTimeLeft<=0){stopOnlineTimer();$('feedback').textContent='⏱️ Tiempo agotado…';}},1000)}
 window.showVersusPanel=function(w){$('versusPrivatePanel').classList.toggle('hidden',w!=='private');$('versusPublicPanel').classList.toggle('hidden',w!=='public');$('vtabPrivate').className=w==='private'?'primary':'secondary';$('vtabPublic').className=w==='public'?'primary':'secondary'};
 window.setVersusRole=function(r){$('versusHostForm').classList.toggle('hidden',r!=='host');$('versusGuestForm').classList.toggle('hidden',r!=='guest')};
 function connect(cb){if(vsSocket&&vsSocket.readyState===1)return cb();try{vsSocket=new WebSocket(ONLINE_SERVER)}catch(e){return alert('No se pudo abrir la conexión Versus. Configura VERSUS_SERVER_URL.')};vsSocket.onopen=cb;vsSocket.onmessage=e=>{try{handle(JSON.parse(e.data))}catch(x){console.error(x)}};vsSocket.onclose=()=>{if(vsOnline)$('feedback').textContent='Conexión cerrada.'};setInterval(()=>{if(vsSocket&&vsSocket.readyState===1)vsSocket.send(JSON.stringify({type:'ping'}))},20000)}
